@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ################################################################################
-# Sheen - Autonomous Development Agent for Adventure Engine
+# Sheen - Autonomous Development Agent
 # 
 # This script runs OpenCode in a continuous loop, implementing features
 # through Discovery → Planning → Implementation → Validation phases.
@@ -11,6 +11,7 @@
 # - Phase timeout protection
 # - Progress tracking and metrics
 # - Test failure handling with retries
+# - Generic support for any project with planning documents
 ################################################################################
 
 set -e  # Exit on error
@@ -108,7 +109,7 @@ print_banner() {
     echo "║   ███████║██║  ██║███████╗███████╗██║ ╚████║                     ║"
     echo "║   ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝                     ║"
     echo "║                                                                   ║"
-    echo "║        Autonomous Development Agent for Adventure Engine         ║"
+    echo "║             Autonomous Development Agent                         ║"
     echo "║                                                                   ║"
     echo "╚═══════════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
@@ -156,9 +157,10 @@ check_prerequisites() {
         exit 1
     fi
     
-    # Check if we're in the right directory
-    if [ ! -f "PROMPT.md" ]; then
-        log ERROR "PROMPT.md not found. Are you in the AdventureEngine directory?"
+    # Check if we're in a git repository
+    if ! git rev-parse --git-dir &> /dev/null; then
+        log ERROR "Not in a git repository. Please initialize git first."
+        echo "  Run: git init"
         exit 1
     fi
     
@@ -177,13 +179,14 @@ check_prerequisites() {
 
 update_prompt_phase() {
     local phase=$1
-    local slice=$2
     
-    # Update the "Current Iteration" section at the bottom of PROMPT.md
-    sed -i.bak \
-        -e "s/\*\*Phase:\*\* .*/\*\*Phase:\*\* $phase/" \
-        -e "s/\*\*Next Action:\*\* .*/\*\*Next Action:\*\* $phase/" \
-        PROMPT.md
+    # Update the "Current Iteration" section at the bottom of PROMPT.md if it exists
+    if [ -f "PROMPT.md" ]; then
+        sed -i.bak \
+            -e "s/\*\*Phase:\*\* .*/\*\*Phase:\*\* $phase/" \
+            -e "s/\*\*Next Action:\*\* .*/\*\*Next Action:\*\* $phase/" \
+            PROMPT.md
+    fi
 }
 
 check_phase_timeout() {
@@ -311,23 +314,25 @@ detect_opencode_errors() {
 
 detect_phase_completion() {
     local phase="$1"
-    local slice_dir="docs/slices/phase-2"  # TODO: Make this dynamic based on current slice
     
     if [ "$VERBOSE" = true ]; then
         log INFO "🔍 Checking phase completion for: $phase" >&2
     fi
     
     # Check if phase completion marker exists in the corresponding file
-    # Check both root directory and slice directory
+    # Look in common locations: root directory, docs/, .sheen/
     case $phase in
         DISCOVERY)
             if [ "$VERBOSE" = true ]; then
                 [ -f "DISCOVERY.md" ] && log INFO "  ✓ Found ./DISCOVERY.md" >&2 || log INFO "  ✗ No ./DISCOVERY.md" >&2
-                [ -f "$slice_dir/DISCOVERY.md" ] && log INFO "  ✓ Found $slice_dir/DISCOVERY.md" >&2 || log INFO "  ✗ No $slice_dir/DISCOVERY.md" >&2
+                [ -f "docs/DISCOVERY.md" ] && log INFO "  ✓ Found docs/DISCOVERY.md" >&2
+                [ -f ".sheen/DISCOVERY.md" ] && log INFO "  ✓ Found .sheen/DISCOVERY.md" >&2
             fi
             
+            # Check multiple possible locations for DISCOVERY.md
             if ([ -f "DISCOVERY.md" ] && grep -q "DISCOVERY COMPLETE" DISCOVERY.md) || \
-               ([ -f "$slice_dir/DISCOVERY.md" ] && grep -q "DISCOVERY COMPLETE" "$slice_dir/DISCOVERY.md"); then
+               ([ -f "docs/DISCOVERY.md" ] && grep -q "DISCOVERY COMPLETE" "docs/DISCOVERY.md") || \
+               ([ -f ".sheen/DISCOVERY.md" ] && grep -q "DISCOVERY COMPLETE" ".sheen/DISCOVERY.md"); then
                 if [ "$VERBOSE" = true ]; then
                     log INFO "  ✓ Found 'DISCOVERY COMPLETE' marker" >&2
                 fi
@@ -342,11 +347,15 @@ detect_phase_completion() {
         PLANNING)
             if [ "$VERBOSE" = true ]; then
                 [ -f "PLAN.md" ] && log INFO "  ✓ Found ./PLAN.md" >&2 || log INFO "  ✗ No ./PLAN.md" >&2
-                [ -f "$slice_dir/PLAN.md" ] && log INFO "  ✓ Found $slice_dir/PLAN.md" >&2 || log INFO "  ✗ No $slice_dir/PLAN.md" >&2
+                [ -f "docs/PLAN.md" ] && log INFO "  ✓ Found docs/PLAN.md" >&2
+                [ -f ".sheen/plan.md" ] && log INFO "  ✓ Found .sheen/plan.md" >&2
             fi
             
+            # Check multiple possible locations for PLAN.md (note: .sheen uses lowercase plan.md)
             if ([ -f "PLAN.md" ] && grep -q "PLAN COMPLETE" PLAN.md) || \
-               ([ -f "$slice_dir/PLAN.md" ] && grep -q "PLAN COMPLETE" "$slice_dir/PLAN.md"); then
+               ([ -f "docs/PLAN.md" ] && grep -q "PLAN COMPLETE" "docs/PLAN.md") || \
+               ([ -f ".sheen/plan.md" ] && grep -q "PLAN COMPLETE" ".sheen/plan.md") || \
+               ([ -f ".sheen/PLAN.md" ] && grep -q "PLAN COMPLETE" ".sheen/PLAN.md"); then
                 if [ "$VERBOSE" = true ]; then
                     log INFO "  ✓ Found 'PLAN COMPLETE' marker" >&2
                 fi
@@ -363,8 +372,10 @@ detect_phase_completion() {
                 [ -f "PROJECT_STATUS.md" ] && log INFO "  ✓ Found PROJECT_STATUS.md" >&2 || log INFO "  ✗ No PROJECT_STATUS.md" >&2
             fi
             
-            # For implementation, check PROJECT_STATUS.md in root
-            if [ -f "PROJECT_STATUS.md" ] && grep -q "IMPLEMENTATION COMPLETE" PROJECT_STATUS.md; then
+            # Check for implementation completion marker in PROJECT_STATUS.md or similar files
+            if ([ -f "PROJECT_STATUS.md" ] && grep -q "IMPLEMENTATION COMPLETE" PROJECT_STATUS.md) || \
+               ([ -f "STATUS.md" ] && grep -q "IMPLEMENTATION COMPLETE" STATUS.md) || \
+               ([ -f ".sheen/status.md" ] && grep -q "IMPLEMENTATION COMPLETE" ".sheen/status.md"); then
                 if [ "$VERBOSE" = true ]; then
                     log INFO "  ✓ Found 'IMPLEMENTATION COMPLETE' marker" >&2
                 fi
@@ -379,11 +390,14 @@ detect_phase_completion() {
         VALIDATION)
             if [ "$VERBOSE" = true ]; then
                 [ -f "VALIDATION.md" ] && log INFO "  ✓ Found ./VALIDATION.md" >&2 || log INFO "  ✗ No ./VALIDATION.md" >&2
-                [ -f "$slice_dir/VALIDATION.md" ] && log INFO "  ✓ Found $slice_dir/VALIDATION.md" >&2 || log INFO "  ✗ No $slice_dir/VALIDATION.md" >&2
+                [ -f "docs/VALIDATION.md" ] && log INFO "  ✓ Found docs/VALIDATION.md" >&2
+                [ -f ".sheen/VALIDATION.md" ] && log INFO "  ✓ Found .sheen/VALIDATION.md" >&2
             fi
             
+            # Check multiple possible locations for VALIDATION.md
             if ([ -f "VALIDATION.md" ] && grep -q "VALIDATION COMPLETE" VALIDATION.md) || \
-               ([ -f "$slice_dir/VALIDATION.md" ] && grep -q "VALIDATION COMPLETE" "$slice_dir/VALIDATION.md"); then
+               ([ -f "docs/VALIDATION.md" ] && grep -q "VALIDATION COMPLETE" "docs/VALIDATION.md") || \
+               ([ -f ".sheen/VALIDATION.md" ] && grep -q "VALIDATION COMPLETE" ".sheen/VALIDATION.md"); then
                 if [ "$VERBOSE" = true ]; then
                     log INFO "  ✓ Found 'VALIDATION COMPLETE' marker" >&2
                 fi
@@ -411,7 +425,7 @@ run_opencode() {
     local log_file="$LOG_DIR/iteration-${iteration}-${phase}.log"
     
     # Update prompt with current phase
-    update_prompt_phase "$phase" "2.1-session-management"
+    update_prompt_phase "$phase"
     
     # Get commit count before OpenCode runs (for tracking)
     local commits_before=$(git rev-list --count HEAD 2>/dev/null || echo "0")
@@ -420,16 +434,16 @@ run_opencode() {
     local prompt_text
     case $phase in
         DISCOVERY)
-            prompt_text="Begin Discovery Phase: Read docs/slices/phase-2/slice-2.1-session-management.md and create DISCOVERY.md. End with 'DISCOVERY COMPLETE - Ready for Planning'"
+            prompt_text="Begin Discovery Phase: Review project documentation and planning files (check for .sheen/plan.md, docs/, or other planning documents). Analyze the requirements and create DISCOVERY.md documenting your findings, architecture decisions, and technical approach. End with 'DISCOVERY COMPLETE - Ready for Planning'"
             ;;
         PLANNING)
-            prompt_text="Begin Planning Phase: Create PLAN.md with domain design, API contracts, test plan. End with 'PLAN COMPLETE - Ready for Implementation'"
+            prompt_text="Begin Planning Phase: Based on DISCOVERY.md and project documentation, create PLAN.md with detailed implementation plan including: architecture/design decisions, API contracts (if applicable), module structure, test strategy, and implementation steps. End with 'PLAN COMPLETE - Ready for Implementation'"
             ;;
         IMPLEMENTATION)
-            prompt_text="Continue Implementation Phase: Follow TDD - RED-GREEN-REFACTOR cycle. Write tests first, implement minimal code, refactor. CRITICAL: Commit after EVERY passing test with 'git add -A && git commit -m \"test: description\"' or 'feat: description'. When all features implemented and tests passing, update PROJECT_STATUS.md and end with 'IMPLEMENTATION COMPLETE - All tests passing (N tests)'"
+            prompt_text="Continue Implementation Phase: Follow PLAN.md and implement features using best practices for this project type. Use TDD when appropriate (write tests first, implement minimal code, refactor). CRITICAL: Commit frequently after completing logical units of work with 'git add -A && git commit -m \"descriptive message\"'. When all planned features are implemented and working, update PROJECT_STATUS.md and end with 'IMPLEMENTATION COMPLETE - All features working'"
             ;;
         VALIDATION)
-            prompt_text="Begin Validation Phase: Run all tests, validate acceptance criteria. Create VALIDATION.md. End with 'VALIDATION COMPLETE - Slice ready for merge'"
+            prompt_text="Begin Validation Phase: Validate the implementation against original requirements and acceptance criteria from planning documents. Run all tests and checks appropriate for this project. Create VALIDATION.md documenting test results, coverage, and validation status. End with 'VALIDATION COMPLETE - Ready for review'"
             ;;
         *)
             prompt_text="Continue with current phase: $phase"
@@ -586,7 +600,6 @@ auto_commit_changes() {
 
 main_loop() {
     local phase="DISCOVERY"
-    local slice="2.1-session-management"
     
     while [ $ITERATION -lt $MAX_ITERATIONS ]; do
         ITERATION=$((ITERATION + 1))
@@ -619,7 +632,7 @@ main_loop() {
                 log SUCCESS "Discovery phase complete. Moving to Planning."
                 
                 # Commit discovery work
-                auto_commit_changes "Discovery" "docs: complete discovery phase for slice $slice"
+                auto_commit_changes "Discovery" "docs: complete discovery phase"
                 
                 phase="PLANNING"
                 PHASE_ITERATION_COUNT=0  # Reset phase counter
@@ -629,7 +642,7 @@ main_loop() {
                 log SUCCESS "Planning phase complete. Moving to Implementation."
                 
                 # Commit planning work
-                auto_commit_changes "Planning" "docs: complete planning phase for slice $slice"
+                auto_commit_changes "Planning" "docs: complete planning phase"
                 
                 phase="IMPLEMENTATION"
                 PHASE_ITERATION_COUNT=0  # Reset phase counter
@@ -639,7 +652,7 @@ main_loop() {
                 log SUCCESS "Implementation phase complete. Running tests..."
                 
                 # Commit implementation work before running tests
-                auto_commit_changes "Implementation" "feat: complete implementation for slice $slice"
+                auto_commit_changes "Implementation" "feat: complete implementation phase"
                 
                 # Run tests with retry logic
                 if run_tests_with_retry; then
@@ -668,29 +681,28 @@ main_loop() {
                 fi
                 ;;
             COMPLETE)
-                log SUCCESS "Slice validation complete!"
+                log SUCCESS "Validation complete!"
                 
                 # Commit validation work
-                auto_commit_changes "Validation" "docs: complete validation for slice $slice"
+                auto_commit_changes "Validation" "docs: complete validation phase"
                 
                 log INFO "Checking git status..."
                 check_git_status
                 
                 log SUCCESS "════════════════════════════════════════════════════"
-                log SUCCESS "SLICE COMPLETE: $slice"
+                log SUCCESS "DEVELOPMENT CYCLE COMPLETE"
                 log SUCCESS "Total iterations: $ITERATION"
                 log SUCCESS "════════════════════════════════════════════════════"
                 
-                # Ask if we should continue to next slice
+                # Ask if we should continue with next cycle
                 echo ""
-                read -p "Continue to next slice? (y/n) " -n 1 -r
+                read -p "Start another development cycle? (y/n) " -n 1 -r
                 echo ""
                 
                 if [[ $REPLY =~ ^[Yy]$ ]]; then
-                    log INFO "Preparing for next slice..."
+                    log INFO "Starting new development cycle..."
                     phase="DISCOVERY"
                     PHASE_ITERATION_COUNT=0
-                    # TODO: Auto-detect next slice from SLICE_TRACKER.md
                 else
                     log INFO "Sheen stopping. Great work!"
                     break

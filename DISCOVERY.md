@@ -1,6 +1,7 @@
 # Discovery Phase: Building Sheen v0.1.0
 
 **Date**: January 16, 2026  
+**Updated**: January 16, 2026 (Current state analysis added)  
 **Goal**: Build a Node.js/TypeScript global CLI tool for autonomous development with OpenCode integration
 
 ## Project Understanding
@@ -385,14 +386,112 @@ This discovery phase is complete when:
 ✅ Implementation strategy defined  
 ✅ Dependencies validated  
 ✅ DISCOVERY.md created  
+✅ **Current state assessed** (Added: Jan 16, 2026)
+✅ **Implementation progress analyzed** (Added: Jan 16, 2026)
+
+## Current State Assessment (Updated: Jan 16, 2026)
+
+### Implementation Progress
+
+**Recent Git History Analysis:**
+```
+acf394b feat: complete implementation for slice 2.1-session-management
+7f62ba2 docs: update README with v0.1.0 features and usage examples
+3eea34d docs: mark implementation complete - 65 tests passing
+4849ff8 test: enhance smoke-test.sh with comprehensive checks
+3649037 test: add ToolRegistry tests (20 tests passing)
+27d2102 test: add file tools tests (16 tests passing)
+43bf33a docs: update PROJECT_STATUS.md with comprehensive progress
+6e3d8fb feat: register all tools in Agent (9 tools total)
+f033a68 test: add shell_exec tool tests (7 tests passing)
+2cf5c7b test: add git tools tests (10 tests passing)
+```
+
+**Status**: Significant progress made on tool system and testing infrastructure. 65 tests passing indicates solid foundation.
+
+### What's Working ✅
+
+1. **Project Structure** - Complete directory layout exists
+2. **Package Configuration** - package.json properly configured with bin entry
+3. **TypeScript Setup** - tsconfig.json in place
+4. **Tool System** - 9 tools implemented and tested:
+   - File tools: read_file, write_file, edit_file, list_files, search_files
+   - Git tools: git_status, git_diff, git_commit, git_log
+   - Shell tool: shell_exec
+5. **Tool Registry** - Working tool registration system (20 tests)
+6. **Testing Infrastructure** - Jest configured, 65 tests passing
+7. **Smoke Test** - Enhanced smoke-test.sh for validation
+8. **Documentation** - README updated with features and usage
+
+### What's Missing ❌
+
+**Critical Gaps** (Blocking MVP):
+1. **OpenCode Integration** - Core client not implemented
+2. **Agent Execution Loop** - Main autonomous loop incomplete
+3. **Project Detection** - Auto-detection logic missing
+4. **Prompt Builder** - Context and prompt construction needed
+5. **Context Manager** - Conversation context management missing
+6. **Global Install Testing** - `npm link` end-to-end verification needed
+
+**Secondary Gaps** (Nice to have):
+1. **Live Input System** - Non-blocking user input queue
+2. **Output Formatting** - Rich output with ora spinners
+3. **Logger** - Structured logging to history.jsonl
+4. **Project Initializer** - Auto-create .sheen/ directories
+5. **Configuration Loader** - Multi-tier config system  
 
 ## Open Questions
 
 1. **OpenCode API**: What's the exact interface? Need to test.
+   - **UPDATE**: Bash version uses `opencode run --continue` subprocess
+   - **DECISION**: Start with subprocess approach (proven to work)
+   
 2. **Tool Call Format**: MCP protocol? Custom format? Need to verify.
+   - **ACTION**: Test OpenCode output format in implementation phase
+   
 3. **Streaming**: Does OpenCode support streaming? Important for UX.
+   - **NOTE**: Bash version captures full output, streaming is optional for MVP
+   
 4. **Context Window**: How much context can we send? May need truncation.
+   - **ACTION**: Start without truncation, add if needed
+   
 5. **Error Handling**: What errors does OpenCode return? Need mapping.
+   - **ACTION**: Implement graceful error handling during integration
+
+## Critical Path to MVP
+
+Based on current state (65 tests passing, tools implemented), the **critical path** is:
+
+### Priority 1: OpenCode Integration (Highest)
+1. Implement OpenCode client with subprocess execution
+2. Parse tool call responses from OpenCode
+3. Implement tool adapter to route calls to registry
+4. Test end-to-end: prompt → OpenCode → tool execution → result
+
+### Priority 2: Agent Loop (High)
+1. Implement main execution loop
+2. Add iteration limits and timeout protection
+3. Implement progress tracking
+4. Add error recovery logic
+
+### Priority 3: Context & Prompting (High)
+1. Implement prompt builder with system prompt
+2. Add project context to prompts
+3. Implement basic context manager
+4. Format tool definitions for OpenCode
+
+### Priority 4: Integration Testing (High)
+1. Test `npm link` for global installation
+2. Run smoke test end-to-end
+3. Verify simple prompt execution
+4. Validate MVP exit criteria
+
+### Priority 5: Project Detection (Medium)
+1. Basic project type detection (Node.js/Python/Go)
+2. Simple .sheen/ initialization
+3. Can defer advanced features post-MVP
+
+**Estimated Effort**: With tools already implemented, 2-3 days of focused work to reach MVP.
 
 ## Next Steps
 
