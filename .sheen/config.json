@@ -1,0 +1,45 @@
+{
+  "version": "0.1.0",
+  "autoApprove": false,
+  "maxIterations": 100,
+  "tools": [
+    "file",
+    "git",
+    "shell"
+  ],
+  "excludePatterns": [
+    "node_modules",
+    ".git",
+    "dist",
+    "build",
+    "coverage"
+  ],
+  "opencode": {
+    "model": "opencode",
+    "contextWindow": 200000,
+    "streamOutput": true
+  },
+  "logging": {
+    "level": "info",
+    "historyFile": ".sheen/history.jsonl"
+  },
+  "project": {
+    "type": "nodejs",
+    "language": "typescript",
+    "packageManager": "npm"
+  },
+  "phases": {
+    "current": 1,
+    "total": 10
+  },
+  "exitCriteria": {
+    "description": "Exit when new sheen binary is ready and working",
+    "checks": [
+      "npm link successfully creates global sheen command",
+      "sheen --version returns version number",
+      "sheen --help displays usage information",
+      "Smoke test passes: sheen works in test directory",
+      "Can execute basic prompt end-to-end"
+    ]
+  }
+}

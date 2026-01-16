@@ -1,0 +1,41 @@
+# Sheen Configuration File
+
+# Maximum iterations before stopping (safety limit)
+MAX_ITERATIONS=100
+
+# Sleep time between iterations (seconds)
+# Set to 0 for no delay, increase if you want to review output between runs
+SLEEP_BETWEEN_ITERATIONS=5
+
+# Log directory
+LOG_DIR="logs/sheen"
+
+# Current slice being worked on
+CURRENT_SLICE="1.1-project-setup"
+
+# OpenCode server settings (if using --attach mode)
+USE_SERVER=false
+SERVER_URL="http://localhost:4096"
+
+# Auto-commit after each passing test (recommended for Sheen)
+AUTO_COMMIT=true
+
+# Auto-run tests after implementation phase
+AUTO_TEST=true
+
+# Phase timeout limits (iterations per phase)
+MAX_DISCOVERY_ITERATIONS=5
+MAX_PLANNING_ITERATIONS=10
+MAX_IMPLEMENTATION_ITERATIONS=70
+MAX_VALIDATION_ITERATIONS=10
+
+# Error recovery settings
+MAX_OPENCODE_ERRORS=3        # Max consecutive OpenCode errors before stopping
+MAX_TEST_RETRIES=3           # Max test retry attempts
+MAX_NO_PROGRESS=5            # Max iterations without progress before warning
+
+# Model to use (leave empty for default)
+MODEL=""
+
+# Agent to use (leave empty for default)
+AGENT=""
