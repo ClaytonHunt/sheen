@@ -1,0 +1,20 @@
+{
+  "version": "0.1.0",
+  "autoApprove": false,
+  "maxIterations": 50,
+  "tools": [
+    "file",
+    "git",
+    "shell"
+  ],
+  "excludePatterns": [
+    "node_modules",
+    ".git",
+    "dist",
+    "build",
+    "coverage"
+  ],
+  "opencode": {
+    "streamOutput": true
+  }
+}
