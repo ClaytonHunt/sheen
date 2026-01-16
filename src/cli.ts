@@ -4,6 +4,7 @@ import { ProjectDetector } from './project/detector';
 import { SheenInitializer } from './project/initializer';
 import { GlobalConfig } from './config/global';
 import { Agent } from './core/agent';
+import { showVersion } from './io/banner';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -21,12 +22,18 @@ async function checkPlanExists(cwd: string): Promise<boolean> {
 }
 
 export async function runCLI() {
+  // Check for version flag before Commander processes it
+  if (process.argv.includes('--version') || process.argv.includes('-V')) {
+    showVersion('0.1.1');
+    process.exit(0);
+  }
+
   const program = new Command();
 
   program
     .name('sheen')
     .description('Autonomous coding agent with human oversight')
-    .version('0.1.0');
+    .version('0.1.1');
 
   // Main command with prompt
   program
