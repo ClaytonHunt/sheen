@@ -3,6 +3,7 @@ import { Logger } from './utils/logger';
 import { ProjectDetector } from './project/detector';
 import { SheenInitializer } from './project/initializer';
 import { GlobalConfig } from './config/global';
+import { Agent } from './core/agent';
 
 export async function runCLI() {
   const program = new Command();
@@ -60,9 +61,25 @@ export async function runCLI() {
         
         logger.info(`⚙️  Configuration loaded (max iterations: ${config.maxIterations})`);
         
-        // TODO: Run agent loop
-        logger.warn('⏳ Agent execution not yet implemented');
-        logger.info('📝 Ready for implementation!');
+        // Run agent if prompt provided
+        if (prompt) {
+          logger.info('🤖 Starting agent...');
+          
+          const agent = new Agent(config, projectContext);
+          
+          logger.info(`📝 Prompt: "${prompt}"`);
+          logger.info('');
+          
+          const state = await agent.run(prompt);
+          
+          logger.info('');
+          logger.info('✅ Agent execution complete');
+          logger.info(`   Iterations: ${state.iteration}`);
+          logger.info(`   Files modified: ${state.metrics.fileCount}`);
+          
+        } else {
+          logger.info('📝 No prompt provided. Use: sheen "your task here"');
+        }
         
       } catch (error) {
         logger.error('❌ Error', error as Error);
