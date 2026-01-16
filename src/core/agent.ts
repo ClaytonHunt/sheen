@@ -3,6 +3,8 @@ import { OpenCodeClient } from '../opencode/client.js';
 import { ToolCallAdapter } from '../opencode/adapter.js';
 import { ToolRegistry } from '../tools/registry.js';
 import { fileTools } from '../tools/file.js';
+import { gitTools } from '../tools/git.js';
+import { shellTools } from '../tools/shell.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -25,6 +27,8 @@ export class Agent {
     // Initialize components
     this.toolRegistry = new ToolRegistry();
     this.toolRegistry.registerAll(fileTools);
+    this.toolRegistry.registerAll(gitTools);
+    this.toolRegistry.registerAll(shellTools);
     
     this.opencode = new OpenCodeClient(config.opencode);
     this.adapter = new ToolCallAdapter(this.toolRegistry, projectContext);
