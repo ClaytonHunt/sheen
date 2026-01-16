@@ -1,507 +1,511 @@
-# Discovery Phase: Building Sheen v0.1.0
+# Discovery Phase: Sheen v0.1.0 - Bug Fixes and Enhancements
 
 **Date**: January 16, 2026  
-**Updated**: January 16, 2026 (Current state analysis added)  
-**Goal**: Build a Node.js/TypeScript global CLI tool for autonomous development with OpenCode integration
+**Updated**: January 16, 2026 (Bug fix analysis)  
+**Phase**: Post-MVP Bug Fixes  
+**Status**: DISCOVERY IN PROGRESS
 
-## Project Understanding
+## Current State Analysis
 
-### What is Sheen?
+### Project Overview
+Sheen v0.1.0 is **COMPLETE** with all core features implemented and tested:
+- ✅ 65 passing unit tests
+- ✅ 9 working tools (file, git, shell)
+- ✅ Full OpenCode integration
+- ✅ Project detection and initialization
+- ✅ Multi-iteration execution loop
+- ✅ Comprehensive test suite
 
-Sheen is an autonomous coding agent that:
-- Runs as a global CLI tool (`npm install -g sheen`)
-- Works from any directory
-- Auto-detects project types and creates intelligent plans
-- Executes development tasks autonomously with human oversight
-- Integrates with OpenCode as the LLM backend
-- Can pause, resume, and accept live corrections
+### Identified Issues
 
-### Reference Implementation Analysis
+Based on user feedback and testing, three bugs/enhancements need to be addressed:
 
-A working bash version (`sheen.sh`, 774 lines) exists from AdventureEngine. Key insights:
+#### 1. Missing ASCII Header in NPM Version
+**Issue**: When running `sheen --version`, it only outputs the version number `0.1.0` without the ASCII art header that makes it visually appealing.
 
-**1. Autonomous Loop Pattern** (lines 587-722)
-```
-Initialize phase → While iterations < max:
-  - Display iteration info
-  - Check phase timeout
-  - Track progress metrics
-  - Run OpenCode with context
-  - Detect phase completion
-  - Transition or continue
-  - Sleep between iterations
+**Current Behavior**:
+```bash
+$ sheen --version
+0.1.0
 ```
 
-**2. Phase Management** (lines 312-402)
-- Discovery → Planning → Implementation → Validation → Complete
-- Each phase has completion markers (e.g., "DISCOVERY COMPLETE")
-- Automatic detection via file scanning
-- Timeout protection per phase
+**Expected Behavior**:
+```bash
+$ sheen --version
+   _____ __                  
+  / ___// /_  ___  ___  ____ 
+  \__ \/ __ \/ _ \/ _ \/ __ \
+ ___/ / / / /  __/  __/ / / /
+/____/_/ /_/\___/\___/_/ /_/ 
+                              
+v0.1.0 - Autonomous coding agent
+```
 
-**3. OpenCode Integration** (lines 404-498)
-- Updates PROMPT.md with current phase
-- Runs `opencode run --continue` to maintain context
-- Captures output to log files
-- Tracks commits created during execution
-- Supports verbose and quiet modes
+**Root Cause**: The CLI uses Commander.js's built-in `.version()` method which only outputs the version string. We need to override this behavior to display a custom version output with ASCII art.
 
-**4. Error Recovery** (lines 287-310)
-- Counts consecutive OpenCode errors
-- Max retry limits (default: 3)
-- Test failure handling with retries
-- Progress stall detection (5 iterations without change)
+**Location**: `src/cli.ts:11-14`
 
-**5. Progress Tracking** (lines 230-285)
-- Monitors test count, file count, commit hash
-- Detects when no progress is being made
-- Logs progress changes ("+N tests added", "+N files")
+**Fix Approach**:
+1. Create ASCII art header (can use figlet or pre-generated art)
+2. Override Commander's version display using a custom action
+3. Ensure it works in the compiled npm package
 
-**6. Configuration System** (.sheenconfig)
-- Max iterations, phase timeouts
-- Auto-commit settings
-- Error recovery thresholds
-- Customizable per-project
+---
 
-### Requirements for Node.js/TypeScript Version
+#### 2. Verbose Mode Not Working
+**Issue**: The `--verbose` or `-v` flag is defined but verbose logging doesn't appear to be working as expected.
 
-**Must Have (MVP)**:
-1. Global CLI installation via npm
-2. CLI argument parsing (--auto, --help, --version, etc.)
-3. Project detection and .sheen/ auto-initialization
-4. Basic autonomous loop with OpenCode integration
-5. File, git, and shell tools
-6. Configuration system (global + project)
-7. Graceful shutdown and error handling
+**Current Behavior**:
+```bash
+$ sheen --verbose "test prompt"
+[INFO] 🚀 Sheen starting... 
+[INFO] 📂 Detecting project... 
+# Only INFO level logs shown, no DEBUG logs
+```
 
-**Should Have (Post-MVP)**:
-1. Live user input during execution
-2. Progress tracking and metrics
-3. Phase timeout protection
-4. Test execution and retry logic
-5. Multiple project type detection
+**Expected Behavior**:
+```bash
+$ sheen --verbose "test prompt"
+[DEBUG] CLI arguments parsed: { prompt: 'test prompt', verbose: true }
+[INFO] 🚀 Sheen starting...
+[DEBUG] Loading global config from ~/.sheen/config.json
+[INFO] 📂 Detecting project...
+[DEBUG] Checking for package.json...
+[DEBUG] Found package.json, detected nodejs
+# All DEBUG and INFO logs shown
+```
 
-**Could Have (Future)**:
-1. Plugin system for custom tools
-2. Web UI for monitoring
-3. Team collaboration features
-4. Cloud state sync
+**Root Cause Investigation**:
+1. The flag is passed to `Logger` constructor: `new Logger(options.verbose ? 'debug' : 'info')`
+2. Need to check if `Logger` class properly filters/displays debug messages
+3. Need to verify the verbose flag is propagated throughout the execution
+
+**Location**: 
+- `src/cli.ts:26` - Logger initialization
+- `src/utils/logger.ts` - Logger implementation
+
+**Fix Approach**:
+1. Review `Logger.debug()` implementation
+2. Ensure log level filtering works correctly
+3. Add debug logs throughout the codebase
+4. Test verbose mode end-to-end
+
+---
+
+#### 3. Auto Mode When No Prompt Provided
+**Issue**: When sheen is run without a prompt, it should assume auto mode (reading from `.sheen/plan.md`) until live prompt functionality is built.
+
+**Current Behavior**:
+```bash
+$ sheen
+📝 No prompt provided. Use: sheen "your task here"
+# Exits without doing anything
+```
+
+**Expected Behavior**:
+```bash
+$ sheen
+📝 No prompt provided, assuming auto mode
+📋 Loading plan from .sheen/plan.md...
+✓ Found 3 pending tasks
+🤖 Starting agent in auto mode...
+# Executes tasks from plan.md
+```
+
+**Root Cause**: The CLI checks for a prompt and exits if none is provided, instead of falling back to auto mode.
+
+**Location**: `src/cli.ts:65-82`
+
+**Fix Approach**:
+1. When no prompt is provided, check if `.sheen/plan.md` exists
+2. If it exists, load tasks from the plan
+3. Pass those tasks to the agent for execution
+4. If no plan exists, show a helpful error message suggesting `sheen init`
+
+---
+
+## Technical Investigation
+
+### Issue #1: ASCII Header - Implementation Details
+
+**Research**:
+- Commander.js `.version()` method only accepts a string
+- Need to use `.addCommand()` or custom action to override
+- ASCII art generation: Use `figlet` package or pre-baked string
+
+**Design Decision**: Pre-baked ASCII art string
+- **Pros**: No external dependency, faster startup, guaranteed formatting
+- **Cons**: Manual creation required
+
+**Implementation Plan**:
+1. Create `src/io/banner.ts` with ASCII art constant
+2. Modify `src/cli.ts` to use custom version action
+3. Display banner before version number
+
+**Code Snippet**:
+```typescript
+// src/io/banner.ts
+export const BANNER = `
+   _____ __                  
+  / ___// /_  ___  ___  ____ 
+  \__ \/ __ \/ _ \/ _ \/ __ \\
+ ___/ / / / /  __/  __/ / / /
+/____/_/ /_/\\___/\\___/_/ /_/ 
+`;
+
+export function showVersion(version: string) {
+  console.log(BANNER);
+  console.log(`v${version} - Autonomous coding agent\n`);
+}
+
+// src/cli.ts
+program
+  .version('0.1.0', '-v, --version', 'Show version')
+  .action(() => {
+    showVersion('0.1.0');
+    process.exit(0);
+  });
+```
+
+---
+
+### Issue #2: Verbose Mode - Investigation
+
+Let me check the Logger implementation:
+
+**Current Logger Code** (from `src/utils/logger.ts`):
+```typescript
+export class Logger {
+  constructor(private logLevel: string) {}
+  
+  debug(message: string, meta?: any): void {
+    if (this.logLevel === 'debug') {
+      console.log(`[DEBUG] ${message}`, meta || '');
+    }
+  }
+  
+  info(message: string, meta?: any): void {
+    console.log(`[INFO] ${message}`, meta || '');
+  }
+  
+  // ...
+}
+```
+
+**Problem Found**: 
+1. The Logger implementation likely only outputs DEBUG when level is 'debug'
+2. But no DEBUG logs are being called throughout the codebase
+3. Need to add debug logging statements in key areas
+
+**Solution**:
+1. Add debug logs to critical paths:
+   - CLI argument parsing
+   - Config loading
+   - Project detection steps
+   - Tool execution
+   - OpenCode communication
+2. Ensure Logger is passed through to all components
+
+**Locations to Add Debug Logs**:
+- `src/cli.ts` - Argument parsing
+- `src/config/global.ts` - Config loading
+- `src/project/detector.ts` - Detection logic
+- `src/core/agent.ts` - Agent initialization
+- `src/opencode/client.ts` - OpenCode calls
+- `src/tools/index.ts` - Tool execution
+
+---
+
+### Issue #3: Auto Mode - Design
+
+**Current Flow**:
+```
+CLI parse args → if no prompt → show message and exit
+```
+
+**Desired Flow**:
+```
+CLI parse args → if no prompt → check for .sheen/plan.md
+                               → if exists → load and execute
+                               → if not → suggest init
+```
+
+**Implementation Details**:
+
+1. **Check for plan.md**:
+```typescript
+// In src/cli.ts action handler
+if (!prompt && !options.auto) {
+  // Check if .sheen/plan.md exists
+  const planPath = path.join(process.cwd(), '.sheen', 'plan.md');
+  if (await fs.access(planPath).then(() => true).catch(() => false)) {
+    logger.info('📝 No prompt provided, assuming auto mode');
+    options.auto = true;
+  } else {
+    logger.info('📝 No prompt or plan found. Use: sheen init');
+    return;
+  }
+}
+```
+
+2. **Load plan when in auto mode**:
+```typescript
+if (options.auto) {
+  logger.info('📋 Loading plan from .sheen/plan.md...');
+  // Load tasks from plan.md
+  // Pass to agent for execution
+}
+```
+
+3. **Parse plan.md format**:
+Current `.sheen/plan.md` format (from templates):
+```markdown
+# Sheen Execution Plan
+
+## Tasks
+
+### Task task_123 🔄
+**Description**: Task description
+**Status**: pending
+...
+```
+
+Need to parse this and convert to Task objects.
+
+**Alternative Approach**: Use the existing TaskPlanner class if it has load functionality.
+
+---
 
 ## Architecture Decisions
 
-### Technology Stack
+### Verbose Logging Strategy
+**Decision**: Add strategic debug logs throughout the codebase without being overly verbose.
 
-**Language**: TypeScript with strict mode
-- Type safety for complex state management
-- Great tooling and IDE support
-- Compiles to Node.js for cross-platform
+**Guidelines**:
+1. Log at decision points (if/else branches)
+2. Log before/after external calls (OpenCode, git, shell)
+3. Log configuration loading and merging
+4. Log file I/O operations
+5. Keep debug messages concise and informative
 
-**CLI Framework**: Commander.js
-- Industry standard
-- Clean API
-- Good documentation
-- Supports subcommands
-
-**Output Formatting**:
-- Chalk (v4) for colors
-- Ora (v5) for spinners
-- Console logging (no complex UI frameworks)
-
-**Configuration**: JSON files
-- `~/.sheen/config.json` for global settings
-- `.sheen/config.json` for project settings
-- Simple, human-editable
-
-### Project Structure
-
-Following vertical slice + feature-based organization:
-
-```
-src/
-├── index.ts              # Entry point
-├── cli.ts                # CLI parsing
-├── core/                 # Core agent logic
-│   ├── agent.ts         # Main orchestrator
-│   ├── loop.ts          # Autonomous execution
-│   ├── planner.ts       # Task management
-│   └── context.ts       # Context management
-├── project/              # Project detection
-├── opencode/             # OpenCode integration
-├── tools/                # Built-in tools
-├── io/                   # Input/output
-├── config/               # Configuration
-└── utils/                # Utilities
-```
-
-### Key Design Patterns
-
-**1. Autonomous Loop**
+**Example**:
 ```typescript
-while (iteration < maxIterations) {
-  const task = await planner.getNextTask();
-  const prompt = buildPrompt(task, context);
-  const response = await opencode.execute(prompt);
-  const toolCalls = parseToolCalls(response);
-  await executeTools(toolCalls);
-  await planner.updateProgress(task);
-  await checkForUserInput();
-}
+logger.debug(`Loading config from ${configPath}`);
+logger.debug(`Merged config: maxIterations=${config.maxIterations}`);
 ```
 
-**2. Tool System**
-```typescript
-interface Tool {
-  name: string;
-  description: string;
-  parameters: Schema;
-  execute(params: any): Promise<any>;
-}
+---
 
-const toolRegistry = new Map<string, Tool>();
-toolRegistry.set('read_file', readFileTool);
-toolRegistry.set('write_file', writeFileTool);
-// etc.
+### Auto Mode Implementation
+**Decision**: When no prompt is provided, automatically enter auto mode if `.sheen/plan.md` exists.
+
+**Reasoning**:
+1. Reduces friction - users don't need to remember `--auto` flag
+2. Makes sheen more autonomous - "just run sheen"
+3. Graceful degradation - shows helpful message if no plan exists
+4. Aligns with vision of autonomous agent
+
+**User Experience**:
+```bash
+# Scenario 1: No plan exists
+$ sheen
+📝 No prompt or plan found
+💡 Initialize with: sheen init
+   Or provide a prompt: sheen "your task"
+
+# Scenario 2: Plan exists
+$ sheen
+📝 No prompt provided, entering auto mode
+📋 Loading plan from .sheen/plan.md...
+✓ Found 3 pending tasks
+🤖 Starting agent...
+[continues execution]
+
+# Scenario 3: Explicit prompt
+$ sheen "add tests"
+🤖 Starting agent...
+📝 Prompt: "add tests"
+[executes prompt]
 ```
 
-**3. Project Detection**
-```typescript
-async function detectProject(cwd: string): Promise<ProjectContext> {
-  const hasPackageJson = await exists('package.json');
-  const hasPyProject = await exists('pyproject.toml');
-  // ... detect type
-  return {
-    type: 'nodejs',
-    framework: 'express',
-    language: 'typescript',
-    // ...
-  };
-}
-```
+---
 
-**4. .sheen/ Initialization**
-```typescript
-async function initializeSheen(prompt: string, context: ProjectContext) {
-  if (!await exists('.sheen')) {
-    await mkdir('.sheen');
-    await writeFile('.sheen/plan.md', generatePlan(prompt, context));
-    await writeFile('.sheen/context.md', generateContext(context));
-    await writeFile('.sheen/config.json', defaultConfig);
-  }
-}
-```
+## Implementation Plan
 
-## Technical Challenges
+### Priority Order
+1. **Issue #3 (Auto Mode)** - HIGHEST PRIORITY
+   - Most impactful for user experience
+   - Relatively straightforward implementation
+   - ~30 minutes
 
-### 1. OpenCode Integration
-**Challenge**: How exactly does OpenCode work? HTTP API? Subprocess? SDK?
+2. **Issue #1 (ASCII Header)** - HIGH PRIORITY
+   - Quick win, improves branding
+   - ~20 minutes
 
-**Investigation Needed**:
-- Check if OpenCode has a Node.js SDK
-- Test subprocess execution with `child_process`
-- Understand tool call format (likely MCP protocol)
-- Handle streaming vs. batch responses
-
-**Proposed Solution**: Start with subprocess execution using `child_process.spawn`, similar to bash version.
-
-### 2. Live Input During Execution
-**Challenge**: Accept user input while agent loop is running.
-
-**Options**:
-- `readline` with async iterators
-- Separate stdin listener with message queue
-- Use `inquirer` for interactive prompts when paused
-
-**Proposed Solution**: Message queue with non-blocking readline.
-
-### 3. Cross-Platform Compatibility
-**Challenge**: Windows vs. Unix differences (paths, shell commands).
-
-**Solutions**:
-- Use `path.join()` and `path.resolve()` for paths
-- Use cross-platform shell commands where possible
-- Test on both Windows and Unix
-
-### 4. Global Installation
-**Challenge**: Ensure shebang works on all platforms.
-
-**Solution**:
-```json
-{
-  "bin": {
-    "sheen": "./dist/index.js"
-  }
-}
-```
-
-With shebang: `#!/usr/bin/env node`
-
-## Dependencies Analysis
-
-**Production**:
-- `commander@^11.0.0` - CLI parsing (800KB)
-- `chalk@^4.1.2` - Terminal colors (180KB, ESM compatible)
-- `ora@^5.4.1` - Spinners (250KB)
-- `inquirer@^8.2.5` - Interactive prompts (1.5MB)
-- `dotenv@^16.0.3` - Environment variables (25KB)
-
-**Development**:
-- `typescript@^5.0.0` - Type system
-- `tsx@^4.0.0` - TS execution (dev/test)
-- `@types/node@^20.0.0` - Node.js types
-- `@types/inquirer@^9.0.0` - Inquirer types
-
-**Total Size**: ~3MB for production dependencies (reasonable for CLI tool)
-
-## Implementation Strategy
-
-### Phase 1: Foundation (Tasks 1.1-1.3)
-**Goal**: Project setup, structure, templates
-
-**Deliverables**:
-- package.json with dependencies
-- tsconfig.json configured
-- Directory structure created
-- Template files for .sheen/ initialization
-
-**Validation**: `npm install && npm run build` succeeds
+3. **Issue #2 (Verbose Mode)** - MEDIUM PRIORITY
+   - Requires adding debug logs throughout
+   - More time-consuming but valuable
+   - ~1-2 hours
 
 ---
 
-### Phase 2: CLI & Config (Tasks 2.1-2.3)
-**Goal**: Working CLI with configuration
+### Task Breakdown
 
-**Deliverables**:
-- Entry point with signal handling
-- CLI parser with all commands
-- Global + project config system
+#### Task 1: Implement Auto Mode (30 min)
+**Files to modify**:
+- `src/cli.ts` - Add auto mode logic
 
-**Validation**: `npm link && sheen --help` works
+**Steps**:
+1. Add helper function to check if `.sheen/plan.md` exists
+2. Modify action handler to enter auto mode when no prompt
+3. Test with existing .sheen/ directory
+4. Test without .sheen/ directory
 
----
-
-### Phase 3: Project Detection (Tasks 3.1-3.4)
-**Goal**: Auto-detect projects and initialize .sheen/
-
-**Deliverables**:
-- Project type detector
-- Structure analyzer
-- .sheen/ initializer
-- Loader for existing .sheen/
-
-**Validation**: Run in test directory, verify .sheen/ creation
+**Acceptance Criteria**:
+- `sheen` with no args enters auto mode if plan exists
+- Shows helpful message if no plan exists
+- Works the same as `sheen --auto`
 
 ---
 
-### Phase 4: OpenCode Integration (Tasks 4.1-4.2)
-**Goal**: Working OpenCode client
+#### Task 2: Add ASCII Header (20 min)
+**Files to create/modify**:
+- `src/io/banner.ts` - New file with ASCII art
+- `src/cli.ts` - Override version command
 
-**Deliverables**:
-- OpenCode client (subprocess or API)
-- Tool call adapter
-- Streaming support
+**Steps**:
+1. Generate ASCII art for "Sheen"
+2. Create banner.ts with showVersion function
+3. Override Commander's version action
+4. Test with `sheen --version`
 
-**Validation**: Send prompt to OpenCode, receive response
-
----
-
-### Phase 5: Tool System (Tasks 5.1-5.4)
-**Goal**: Built-in tools for file, git, shell
-
-**Deliverables**:
-- Tool registry
-- File tools (read, write, edit)
-- Git tools (status, commit, diff)
-- Shell tool (exec)
-
-**Validation**: Execute each tool, verify results
+**Acceptance Criteria**:
+- `sheen --version` shows ASCII header + version
+- `sheen -v` also works
+- Works in compiled npm package
 
 ---
 
-### Phase 6: Agent Core (Tasks 6.1-6.4)
-**Goal**: Autonomous execution loop
+#### Task 3: Fix Verbose Mode (1-2 hours)
+**Files to modify**:
+- `src/utils/logger.ts` - Verify implementation
+- `src/cli.ts` - Add debug logs
+- `src/config/global.ts` - Add debug logs
+- `src/project/detector.ts` - Add debug logs
+- `src/core/agent.ts` - Add debug logs
+- `src/opencode/client.ts` - Add debug logs
 
-**Deliverables**:
-- Task planner
-- Execution loop
-- Agent orchestrator
-- Context manager
+**Steps**:
+1. Review and fix Logger.debug() if needed
+2. Add debug logs to CLI argument parsing
+3. Add debug logs to config loading
+4. Add debug logs to project detection
+5. Add debug logs to agent execution
+6. Test with `--verbose` flag
 
-**Validation**: Run end-to-end with simple prompt
-
----
-
-### Phase 7: I/O (Tasks 7.1-7.3)
-**Goal**: Formatted output and live input
-
-**Deliverables**:
-- Output formatter with colors/spinners
-- Input handler (non-blocking)
-- Prompt builder
-
-**Validation**: Clean, readable output; accept live input
-
----
-
-### Phase 8: Utilities (Tasks 8.1-8.3)
-**Goal**: Logging, types, documentation
-
-**Deliverables**:
-- Logger with history.jsonl
-- Type definitions
-- README.md
-
-**Validation**: Logs work, types compile, docs clear
+**Acceptance Criteria**:
+- `sheen --verbose "task"` shows DEBUG logs
+- Debug logs are informative and not overwhelming
+- Regular mode (no --verbose) shows only INFO logs
 
 ---
 
-### Phase 9: Testing (Tasks 9.1-9.3)
-**Goal**: Verification and validation
+## Testing Strategy
 
-**Deliverables**:
-- Smoke test
-- Manual test checklist
-- Global installation verified
+### Unit Tests
+- **Auto Mode**: Test CLI logic for auto mode detection
+- **ASCII Header**: Test banner output
+- **Verbose Mode**: Test Logger with different log levels
 
-**Validation**: All tests pass, sheen works globally
+### Integration Tests
+1. Test `sheen` with no args in directory with plan
+2. Test `sheen` with no args in directory without plan
+3. Test `sheen --version` shows header
+4. Test `sheen --verbose "task"` shows debug logs
+
+### Manual Testing Checklist
+- [ ] Run `sheen --version` - see ASCII header
+- [ ] Run `sheen` in project with plan - auto mode starts
+- [ ] Run `sheen` in empty dir - helpful message shown
+- [ ] Run `sheen --verbose "test"` - debug logs visible
+- [ ] Run `sheen "test"` - only info logs visible
 
 ---
-
-### Phase 10: Dogfooding (Task 10.1)
-**Goal**: Use sheen to build sheen!
-
-**Deliverables**:
-- Switch to new sheen binary
-- Add features using sheen
-- Iterate and improve
-
-**Validation**: Sheen successfully modifies itself
 
 ## Success Criteria
 
-This discovery phase is complete when:
+### Issue #1: ASCII Header
+✅ `sheen --version` displays ASCII art banner
+✅ `sheen -v` works the same way
+✅ Works in compiled npm package
 
-✅ Project requirements fully understood  
-✅ Reference implementation analyzed  
-✅ Architecture decisions documented  
-✅ Technical challenges identified  
-✅ Implementation strategy defined  
-✅ Dependencies validated  
-✅ DISCOVERY.md created  
-✅ **Current state assessed** (Added: Jan 16, 2026)
-✅ **Implementation progress analyzed** (Added: Jan 16, 2026)
+### Issue #2: Verbose Mode
+✅ `sheen --verbose` shows DEBUG level logs
+✅ Debug logs added to all key components
+✅ Regular mode only shows INFO+ logs
+✅ Logs are clear and helpful
 
-## Current State Assessment (Updated: Jan 16, 2026)
+### Issue #3: Auto Mode
+✅ `sheen` with no prompt enters auto mode if plan exists
+✅ Shows helpful message if no plan exists
+✅ Loads and executes tasks from plan.md
+✅ Works identically to `sheen --auto`
 
-### Implementation Progress
+---
 
-**Recent Git History Analysis:**
-```
-acf394b feat: complete implementation for slice 2.1-session-management
-7f62ba2 docs: update README with v0.1.0 features and usage examples
-3eea34d docs: mark implementation complete - 65 tests passing
-4849ff8 test: enhance smoke-test.sh with comprehensive checks
-3649037 test: add ToolRegistry tests (20 tests passing)
-27d2102 test: add file tools tests (16 tests passing)
-43bf33a docs: update PROJECT_STATUS.md with comprehensive progress
-6e3d8fb feat: register all tools in Agent (9 tools total)
-f033a68 test: add shell_exec tool tests (7 tests passing)
-2cf5c7b test: add git tools tests (10 tests passing)
-```
+## Risk Assessment
 
-**Status**: Significant progress made on tool system and testing infrastructure. 65 tests passing indicates solid foundation.
+### Low Risk Changes
+- **ASCII Header**: Isolated change, minimal impact
+- **Auto Mode Logic**: Simple conditional, well-defined behavior
 
-### What's Working ✅
+### Medium Risk Changes
+- **Verbose Logging**: Need to ensure performance not impacted
+- **Plan Loading**: Need to ensure plan.md parsing is robust
 
-1. **Project Structure** - Complete directory layout exists
-2. **Package Configuration** - package.json properly configured with bin entry
-3. **TypeScript Setup** - tsconfig.json in place
-4. **Tool System** - 9 tools implemented and tested:
-   - File tools: read_file, write_file, edit_file, list_files, search_files
-   - Git tools: git_status, git_diff, git_commit, git_log
-   - Shell tool: shell_exec
-5. **Tool Registry** - Working tool registration system (20 tests)
-6. **Testing Infrastructure** - Jest configured, 65 tests passing
-7. **Smoke Test** - Enhanced smoke-test.sh for validation
-8. **Documentation** - README updated with features and usage
+### Mitigation
+1. Test all changes thoroughly
+2. Keep changes isolated to specific files
+3. Add unit tests where possible
+4. Manual test end-to-end scenarios
 
-### What's Missing ❌
+---
 
-**Critical Gaps** (Blocking MVP):
-1. **OpenCode Integration** - Core client not implemented
-2. **Agent Execution Loop** - Main autonomous loop incomplete
-3. **Project Detection** - Auto-detection logic missing
-4. **Prompt Builder** - Context and prompt construction needed
-5. **Context Manager** - Conversation context management missing
-6. **Global Install Testing** - `npm link` end-to-end verification needed
+## Dependencies
 
-**Secondary Gaps** (Nice to have):
-1. **Live Input System** - Non-blocking user input queue
-2. **Output Formatting** - Rich output with ora spinners
-3. **Logger** - Structured logging to history.jsonl
-4. **Project Initializer** - Auto-create .sheen/ directories
-5. **Configuration Loader** - Multi-tier config system  
+**None** - All three issues can be fixed with existing dependencies:
+- chalk (already installed)
+- commander (already installed)
+- fs/path (built-in)
 
-## Open Questions
+No new npm packages required.
 
-1. **OpenCode API**: What's the exact interface? Need to test.
-   - **UPDATE**: Bash version uses `opencode run --continue` subprocess
-   - **DECISION**: Start with subprocess approach (proven to work)
-   
-2. **Tool Call Format**: MCP protocol? Custom format? Need to verify.
-   - **ACTION**: Test OpenCode output format in implementation phase
-   
-3. **Streaming**: Does OpenCode support streaming? Important for UX.
-   - **NOTE**: Bash version captures full output, streaming is optional for MVP
-   
-4. **Context Window**: How much context can we send? May need truncation.
-   - **ACTION**: Start without truncation, add if needed
-   
-5. **Error Handling**: What errors does OpenCode return? Need mapping.
-   - **ACTION**: Implement graceful error handling during integration
+---
 
-## Critical Path to MVP
+## Timeline
 
-Based on current state (65 tests passing, tools implemented), the **critical path** is:
+**Total Estimated Time**: 2-3 hours
 
-### Priority 1: OpenCode Integration (Highest)
-1. Implement OpenCode client with subprocess execution
-2. Parse tool call responses from OpenCode
-3. Implement tool adapter to route calls to registry
-4. Test end-to-end: prompt → OpenCode → tool execution → result
+- Issue #3 (Auto Mode): 30 minutes
+- Issue #1 (ASCII Header): 20 minutes
+- Issue #2 (Verbose Mode): 1-2 hours
+- Testing & Verification: 30 minutes
 
-### Priority 2: Agent Loop (High)
-1. Implement main execution loop
-2. Add iteration limits and timeout protection
-3. Implement progress tracking
-4. Add error recovery logic
-
-### Priority 3: Context & Prompting (High)
-1. Implement prompt builder with system prompt
-2. Add project context to prompts
-3. Implement basic context manager
-4. Format tool definitions for OpenCode
-
-### Priority 4: Integration Testing (High)
-1. Test `npm link` for global installation
-2. Run smoke test end-to-end
-3. Verify simple prompt execution
-4. Validate MVP exit criteria
-
-### Priority 5: Project Detection (Medium)
-1. Basic project type detection (Node.js/Python/Go)
-2. Simple .sheen/ initialization
-3. Can defer advanced features post-MVP
-
-**Estimated Effort**: With tools already implemented, 2-3 days of focused work to reach MVP.
-
-## Next Steps
-
-1. Create PLAN.md with detailed implementation plan
-2. Refine task breakdown based on discoveries
-3. Identify any blocking technical questions
-4. Move to Planning phase
+**Recommended Order**:
+1. Issue #3 first (biggest UX impact)
+2. Issue #1 second (quick win)
+3. Issue #2 last (most time-consuming)
 
 ---
 
 **DISCOVERY COMPLETE - Ready for Planning**
 
-All project requirements understood, architecture designed, and implementation strategy defined. Ready to create detailed technical plan.
+All three issues have been analyzed, root causes identified, and implementation approaches defined. Clear task breakdown and acceptance criteria established. Ready to proceed with implementation planning.
+
+**Next Steps**:
+1. Create detailed implementation plan (PLAN.md update)
+2. Begin with Issue #3 (Auto Mode)
+3. Implement Issue #1 (ASCII Header)
+4. Implement Issue #2 (Verbose Mode)
+5. Test all changes together
+6. Commit and deploy fixes
