@@ -454,17 +454,18 @@ run_opencode() {
     log INFO "Prompt: $prompt_text" >&2
     
     # Run OpenCode (with error handling)
-    # IMPORTANT: Use --continue to maintain context across iterations
+    # NOTE: --continue flag removed due to OpenCode bug with JSON parsing
+    # See: src/opencode/client.ts:59-64 for details on UIMessage/ModelMessage conversion issue
     local opencode_exit_code=0
     if [ "$VERBOSE" = true ]; then
         # Verbose mode: Show OpenCode output in real-time
         log INFO "Running OpenCode in VERBOSE mode (live output)..." >&2
         echo "" >&2
-        opencode run --continue "$prompt_text" 2>&1 | tee "$log_file" >&2 || opencode_exit_code=$?
+        opencode run "$prompt_text" 2>&1 | tee "$log_file" >&2 || opencode_exit_code=$?
         echo "" >&2
     else
         # Normal mode: Run quietly and show summary
-        opencode run --continue "$prompt_text" > "$log_file" 2>&1 || opencode_exit_code=$?
+        opencode run "$prompt_text" > "$log_file" 2>&1 || opencode_exit_code=$?
         
         # Show a summary of what happened
         local line_count=$(wc -l < "$log_file")
