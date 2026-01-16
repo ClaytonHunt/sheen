@@ -4,6 +4,7 @@ import * as path from 'path';
 import { ProjectContext, ProjectType, PackageManager, ProjectStructure, GitInfo, ProjectConventions } from '../utils/types';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { logger } from '../utils/logger';
 
 const execAsync = promisify(exec);
 
@@ -37,15 +38,35 @@ export class ProjectDetector {
   }
 
   /**
-   * Detect project type based on marker files
+   * Detect project type
    */
   private async detectType(dir: string): Promise<ProjectType> {
-    if (await this.exists(path.join(dir, 'package.json'))) return 'nodejs';
-    if (await this.exists(path.join(dir, 'pyproject.toml'))) return 'python';
-    if (await this.exists(path.join(dir, 'requirements.txt'))) return 'python';
-    if (await this.exists(path.join(dir, 'go.mod'))) return 'go';
-    if (await this.exists(path.join(dir, 'Cargo.toml'))) return 'rust';
-    if (await this.exists(path.join(dir, 'index.html'))) return 'web';
+    logger.debug('Checking for package.json...');
+    if (await this.exists(path.join(dir, 'package.json'))) {
+      logger.debug('Found package.json, detected nodejs');
+      return 'nodejs';
+    }
+    
+    logger.debug('Checking for pyproject.toml...');
+    if (await this.exists(path.join(dir, 'pyproject.toml')) || 
+        await this.exists(path.join(dir, 'setup.py'))) {
+      logger.debug('Found Python project files');
+      return 'python';
+    }
+    
+    logger.debug('Checking for go.mod...');
+    if (await this.exists(path.join(dir, 'go.mod'))) {
+      logger.debug('Found go.mod');
+      return 'go';
+    }
+    
+    logger.debug('Checking for Cargo.toml...');
+    if (await this.exists(path.join(dir, 'Cargo.toml'))) {
+      logger.debug('Found Cargo.toml');
+      return 'rust';
+    }
+    
+    logger.debug('No specific project type detected, using unknown');
     return 'unknown';
   }
 
@@ -178,10 +199,14 @@ export class ProjectDetector {
   /**
    * Detect Git information
    */
-  private async detectGit(dir: string): Promise<GitInfo | undefined> {
+  private async detectGit(dir: string): Promise<GitInfo> {
+    // Check if .git directory exists
     const gitDir = path.join(dir, '.git');
     if (!await this.exists(gitDir)) {
-      return undefined;
+      return {
+        initialized: false,
+        hasUncommittedChanges: false
+      };
     }
 
     try {

@@ -3,21 +3,26 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import { AgentConfig } from '../utils/types';
+import { logger } from '../utils/logger';
 
 export class GlobalConfig {
   private static readonly CONFIG_DIR = path.join(os.homedir(), '.sheen');
   private static readonly CONFIG_PATH = path.join(GlobalConfig.CONFIG_DIR, 'config.json');
 
   /**
-   * Load global config from ~/.sheen/config.json
+   * Load global configuration
    */
   static async load(): Promise<Partial<AgentConfig>> {
+    logger.debug(`Loading global config from ${GlobalConfig.CONFIG_PATH}`);
+    
     try {
-      await fs.access(GlobalConfig.CONFIG_PATH);
-      const content = await fs.readFile(GlobalConfig.CONFIG_PATH, 'utf-8');
-      return JSON.parse(content);
+      const configPath = GlobalConfig.CONFIG_PATH;
+      const content = await fs.readFile(configPath, 'utf-8');
+      const config = JSON.parse(content);
+      logger.debug('Global config loaded successfully', config);
+      return config;
     } catch (error) {
-      // Config doesn't exist or can't be read, return empty
+      logger.debug('No global config found, using defaults');
       return {};
     }
   }
@@ -62,16 +67,17 @@ export class GlobalConfig {
   }
 
   /**
-   * Merge configs with priority: CLI > project > global > defaults
+   * Merge configurations (CLI > project > global > defaults)
    */
   static merge(
     cli?: Partial<AgentConfig>,
     project?: Partial<AgentConfig>,
     global?: Partial<AgentConfig>
   ): AgentConfig {
-    const defaults = GlobalConfig.getDefaults();
+    logger.debug('Merging configs: CLI > Project > Global > Defaults');
     
-    return {
+    const defaults = GlobalConfig.getDefaults();
+    const merged = {
       ...defaults,
       ...global,
       ...project,
@@ -96,5 +102,13 @@ export class GlobalConfig {
         ...cli?.errorRecovery
       }
     };
+    
+    logger.debug('Config merge complete', {
+      maxIterations: merged.maxIterations,
+      logLevel: merged.logLevel,
+      autoApprove: merged.autoApprove
+    });
+    
+    return merged;
   }
 }

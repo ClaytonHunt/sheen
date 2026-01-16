@@ -311,5 +311,53 @@
 - Performance optimization
 - Additional tool categories
 - Enhanced error recovery
+- **Direct AI SDK Integration** (see Phase 1 in PLAN.md)
 
 **Ready for**: Production deployment, user testing, and real-world autonomous coding tasks.
+
+---
+
+## Future Roadmap (Post-MVP)
+
+### Phase 1: Direct AI SDK Integration (HIGH PRIORITY)
+**Goal**: Replace OpenCode subprocess with direct Vercel AI SDK integration
+
+**Motivation**:
+- 🐛 **Fix**: Avoid OpenCode middleware bugs (e.g., UIMessage/ModelMessage conversion error)
+- 🚀 **Performance**: 30-50% improvement by eliminating subprocess overhead
+- 🎯 **Control**: Native tool calling with automatic multi-step reasoning
+- 🛡️ **Reliability**: Direct error handling and debugging
+- 🔧 **Autonomous-First**: Design specifically for headless autonomous operation
+
+**Estimated Effort**: 2-3 weeks
+
+**Tasks** (See detailed breakdown in `.sheen/PLAN.md`):
+1. Install dependencies (ai, @ai-sdk/anthropic, zod)
+2. Create AIAgent class to replace OpenCodeClient
+3. Port 9 tools to AI SDK format (bash, read, write, edit, grep, glob, todo)
+4. Implement safety & permission system
+5. Update ExecutionLoop to support both engines (feature flag)
+6. Context window management
+7. Testing & validation
+8. Migration & cleanup
+
+**Reference Documentation**:
+- `DIRECT_AI_SDK_ANALYSIS.md` - Comprehensive analysis (200+ lines)
+- `poc-direct-ai-sdk.ts` - Working proof-of-concept with all core tools
+- `TEST_RESULTS.md` - Test results and recommendations
+
+**Success Metrics**:
+- ✅ All core tools working with AI SDK
+- ✅ 30%+ performance improvement over OpenCode
+- ✅ Zero middleware-related bugs
+- ✅ Successful autonomous task completion
+- ✅ Token usage within acceptable limits
+
+### Phase 2: Advanced Autonomous Features
+- Multi-agent orchestration (parallel task execution)
+- Enhanced context management (semantic search, codebase summarization)
+- Advanced safety features (sandbox, rollback, automated testing)
+- Monitoring & observability (dashboard, analytics, error tracking)
+- LSP integration (code intelligence, type-aware refactoring)
+
+See `.sheen/PLAN.md` for complete future enhancement roadmap.

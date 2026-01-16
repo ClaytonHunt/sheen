@@ -47,22 +47,28 @@ export async function runCLI() {
     .action(async (prompt, options) => {
       const logger = new Logger(options.verbose ? 'debug' : 'info');
       
+      logger.debug('CLI started', { prompt, options });
+      logger.debug(`Working directory: ${process.cwd()}`);
       logger.info('🚀 Sheen starting...');
       
       try {
         // Detect project
         logger.info('📂 Detecting project...');
+        logger.debug('Initializing ProjectDetector');
         const detector = new ProjectDetector();
         const projectContext = await detector.detect(process.cwd());
+        logger.debug(`Project context: ${JSON.stringify({ type: projectContext.type, framework: projectContext.framework })}`);
         logger.info(`✓ Detected: ${projectContext.type} project`);
         if (projectContext.framework) {
           logger.info(`  Framework: ${projectContext.framework}`);
         }
         
         // Initialize or load .sheen/
+        logger.debug('Checking for .sheen/ directory');
         const initializer = new SheenInitializer(projectContext);
         if (!await initializer.exists()) {
           logger.info('📋 Initializing .sheen/ directory...');
+          logger.debug(`Initializing with prompt: ${prompt || 'none'}`);
           await initializer.initialize(prompt);
           logger.info('✓ Created .sheen/ directory');
         } else {
@@ -70,7 +76,9 @@ export async function runCLI() {
         }
         
         // Load configuration
+        logger.debug('Loading global configuration');
         const globalConfig = await GlobalConfig.load();
+        logger.debug(`Global config loaded: ${JSON.stringify(globalConfig)}`);
         const config = GlobalConfig.merge(
           {
             maxIterations: parseInt(options.maxIterations),
@@ -80,6 +88,7 @@ export async function runCLI() {
           undefined,
           globalConfig
         );
+        logger.debug(`Merged config: maxIterations=${config.maxIterations}, logLevel=${config.logLevel}`);
         
         logger.info(`⚙️  Configuration loaded (max iterations: ${config.maxIterations})`);
         
@@ -87,9 +96,13 @@ export async function runCLI() {
         let effectivePrompt = prompt;
         let isAutoMode = options.auto || options.continue;
         
+        logger.debug(`Auto mode check: prompt=${!!prompt}, isAutoMode=${isAutoMode}`);
+        
         if (!prompt && !isAutoMode) {
           // Check if plan exists for auto mode
+          logger.debug('Checking for existing plan.md');
           const planExists = await checkPlanExists(process.cwd());
+          logger.debug(`Plan exists: ${planExists}`);
           
           if (planExists) {
             logger.info('📝 No prompt provided, entering auto mode');
@@ -106,6 +119,7 @@ export async function runCLI() {
         }
         
         // Create agent
+        logger.debug('Initializing Agent');
         const agent = new Agent(config, projectContext);
         
         // Run agent
