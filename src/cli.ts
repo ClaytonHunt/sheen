@@ -4,6 +4,21 @@ import { ProjectDetector } from './project/detector';
 import { SheenInitializer } from './project/initializer';
 import { GlobalConfig } from './config/global';
 import { Agent } from './core/agent';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+/**
+ * Check if .sheen/plan.md exists
+ */
+async function checkPlanExists(cwd: string): Promise<boolean> {
+  const planPath = path.join(cwd, '.sheen', 'plan.md');
+  try {
+    await fs.access(planPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export async function runCLI() {
   const program = new Command();
@@ -61,24 +76,68 @@ export async function runCLI() {
         
         logger.info(`⚙️  Configuration loaded (max iterations: ${config.maxIterations})`);
         
-        // Run agent if prompt provided
-        if (prompt) {
-          logger.info('🤖 Starting agent...');
+        // Handle auto mode detection if no prompt provided
+        let effectivePrompt = prompt;
+        let isAutoMode = options.auto || options.continue;
+        
+        if (!prompt && !isAutoMode) {
+          // Check if plan exists for auto mode
+          const planExists = await checkPlanExists(process.cwd());
           
-          const agent = new Agent(config, projectContext);
+          if (planExists) {
+            logger.info('📝 No prompt provided, entering auto mode');
+            logger.info('💡 Tip: Use --auto to skip this message next time');
+            isAutoMode = true;
+          } else {
+            logger.info('📝 No prompt or plan found');
+            logger.info('');
+            logger.info('💡 Get started:');
+            logger.info('   Initialize: sheen init');
+            logger.info('   Or provide a prompt: sheen "your task here"');
+            return;
+          }
+        }
+        
+        // Create agent
+        const agent = new Agent(config, projectContext);
+        
+        // Run agent
+        if (isAutoMode) {
+          logger.info('📋 Loading plan from .sheen/plan.md...');
           
-          logger.info(`📝 Prompt: "${prompt}"`);
+          // Load existing plan
+          const planner = agent.getPlanner();
+          const tasks = await planner.loadPlan();
+          
+          if (tasks.length === 0) {
+            logger.warn('⚠️  No tasks found in plan');
+            logger.info('💡 Add a task: sheen "your task here"');
+            return;
+          }
+          
+          const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+          logger.info(`✓ Found ${tasks.length} task(s) (${pendingTasks.length} pending)`);
+          logger.info('🤖 Starting agent in auto mode...');
           logger.info('');
           
-          const state = await agent.run(prompt);
+          const state = await agent.run(); // No prompt = auto mode
           
           logger.info('');
           logger.info('✅ Agent execution complete');
           logger.info(`   Iterations: ${state.iteration}`);
           logger.info(`   Files modified: ${state.metrics.fileCount}`);
           
-        } else {
-          logger.info('📝 No prompt provided. Use: sheen "your task here"');
+        } else if (effectivePrompt) {
+          logger.info('🤖 Starting agent...');
+          logger.info(`📝 Prompt: "${effectivePrompt}"`);
+          logger.info('');
+          
+          const state = await agent.run(effectivePrompt);
+          
+          logger.info('');
+          logger.info('✅ Agent execution complete');
+          logger.info(`   Iterations: ${state.iteration}`);
+          logger.info(`   Files modified: ${state.metrics.fileCount}`);
         }
         
       } catch (error) {

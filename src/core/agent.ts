@@ -66,23 +66,31 @@ export class Agent {
   }
 
   /**
-   * Run agent with initial prompt
+   * Run agent with initial prompt or in auto mode
+   * @param initialPrompt - Optional prompt. If not provided, loads existing plan
    */
   async run(initialPrompt?: string): Promise<ExecutionState> {
-    if (!initialPrompt) {
-      throw new Error('Initial prompt is required');
-    }
-
     this.running = true;
     logger.info('Agent starting execution');
-    logger.info(`Prompt: ${initialPrompt}`);
 
     try {
-      // Create initial plan from prompt
-      this.state.tasks = await this.planner.createPlan(initialPrompt);
-      
-      // Add user prompt to history
-      this.contextManager.addUserMessage(initialPrompt);
+      if (initialPrompt) {
+        // Create initial plan from prompt
+        logger.info(`Prompt: ${initialPrompt}`);
+        this.state.tasks = await this.planner.createPlan(initialPrompt);
+        
+        // Add user prompt to history
+        this.contextManager.addUserMessage(initialPrompt);
+      } else {
+        // Auto mode: Load existing plan
+        logger.info('Running in auto mode (loading existing plan)');
+        this.state.tasks = await this.planner.loadPlan();
+        
+        if (this.state.tasks.length === 0) {
+          logger.warn('No tasks found in plan');
+          return this.state;
+        }
+      }
       
       // Execute main loop
       await this.executionLoop.execute(
@@ -172,5 +180,12 @@ export class Agent {
    */
   isRunning(): boolean {
     return this.running;
+  }
+
+  /**
+   * Get task planner (for loading existing plans)
+   */
+  getPlanner(): TaskPlanner {
+    return this.planner;
   }
 }
