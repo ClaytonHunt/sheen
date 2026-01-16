@@ -9,7 +9,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
-    "test": "node --test dist/**/*.test.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -22,17 +24,20 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "commander": "^11.0.0",
     "chalk": "^4.1.2",
-    "ora": "^5.4.1",
+    "commander": "^11.0.0",
+    "dotenv": "^16.0.3",
     "inquirer": "^8.2.5",
-    "dotenv": "^16.0.3"
+    "ora": "^5.4.1"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "tsx": "^4.0.0",
+    "@types/inquirer": "^9.0.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
-    "@types/inquirer": "^9.0.0"
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
