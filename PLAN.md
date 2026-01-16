@@ -1,8 +1,77 @@
 # Technical Plan: Sheen v0.1.0
 
 **Date**: January 16, 2026  
-**Phase**: Planning  
+**Updated**: January 16, 2026 (Current state assessment added)  
+**Phase**: Planning → Implementation  
 **Goal**: Detailed technical design for Node.js/TypeScript autonomous agent
+
+## Current Implementation Status
+
+### ✅ Completed (Phases 1-5)
+- **Phase 1**: Project setup complete (package.json, tsconfig, .gitignore, structure)
+- **Phase 2**: CLI & Config substantially complete (~80%)
+  - Entry point with error handling ✅
+  - CLI parsing with Commander.js ✅
+  - Configuration system needs completion ⚠️
+- **Phase 3**: Project detection skeleton exists (~40%)
+  - Detector implemented ✅
+  - Initializer implemented ✅  
+  - Needs testing and refinement ⚠️
+- **Phase 4**: OpenCode integration partially complete (~60%)
+  - Client implemented with subprocess ✅ (246 lines)
+  - Adapter implemented ✅ (220 lines)
+  - Needs testing and refinement ⚠️
+- **Phase 5**: Tool system complete ✅
+  - Tool registry ✅ (20 tests passing)
+  - File tools ✅ (16 tests passing)
+  - Git tools ✅ (10 tests passing)
+  - Shell tool ✅ (7 tests passing)
+  - **Total: 65 tests passing**
+
+### 🚧 In Progress (Phase 6)
+- **Phase 6**: Agent core (~50% complete)
+  - Agent orchestrator ✅ (218 lines)
+  - Execution loop ✅ (103 lines)
+  - Planner skeleton only ⚠️ (2 lines)
+  - Context manager skeleton only ⚠️ (2 lines)
+
+### ❌ Not Started (Phases 7-9)
+- **Phase 7**: I/O system (skeleton files only)
+- **Phase 8**: Utilities (partial - logger exists)
+- **Phase 9**: Testing (65 tool tests complete, integration tests needed)
+
+### 🎯 Critical Path to MVP
+
+Based on current state, the **remaining work** to reach MVP:
+
+1. **Complete Planner** (src/core/planner.ts) - HIGH PRIORITY
+   - Task creation and management
+   - Plan persistence to .sheen/plan.md
+   - Task status tracking
+   
+2. **Complete Context Manager** (src/core/context.ts) - HIGH PRIORITY
+   - Build conversation context for OpenCode
+   - Manage history pruning
+   - Format tool definitions
+   
+3. **Complete Prompt Builder** (src/io/prompt.ts) - HIGH PRIORITY
+   - System prompt construction
+   - Include project context
+   - Add available tools
+   - Format task description
+   
+4. **Integration Testing** - HIGH PRIORITY
+   - Test OpenCode client end-to-end
+   - Verify tool call parsing
+   - Test autonomous loop
+   - Smoke test with simple prompt
+   
+5. **Global Installation** - MEDIUM PRIORITY
+   - Verify npm link works
+   - Test from different directories
+   - Cross-platform testing
+
+**Estimated effort**: 1-2 days focused work to reach MVP
 
 ---
 
@@ -1695,27 +1764,105 @@ sheen --auto
 ## Success Metrics
 
 ### MVP Complete When:
-✅ Can install globally: `npm install -g sheen`  
-✅ `sheen --version` works  
-✅ `sheen --help` shows usage  
-✅ Can detect project types  
-✅ Creates .sheen/ automatically  
-✅ Executes simple prompts end-to-end  
-✅ Integrates with OpenCode successfully  
-✅ File, git, shell tools work  
-✅ Smoke tests pass  
-✅ Works on Windows and Unix  
+✅ Can install globally: `npm install -g sheen` (DONE - package.json configured)  
+✅ `sheen --version` works (DONE - CLI implemented)  
+✅ `sheen --help` shows usage (DONE - CLI implemented)  
+⚠️ Can detect project types (PARTIALLY - needs testing)  
+⚠️ Creates .sheen/ automatically (PARTIALLY - needs testing)  
+❌ Executes simple prompts end-to-end (BLOCKED - needs planner/context)  
+⚠️ Integrates with OpenCode successfully (PARTIALLY - needs testing)  
+✅ File, git, shell tools work (DONE - 65 tests passing)  
+❌ Smoke tests pass (PENDING - needs end-to-end implementation)  
+❓ Works on Windows and Unix (UNTESTED)  
 
 ### Ready for Dogfooding When:
-✅ All MVP criteria met  
-✅ Can execute multi-step tasks  
-✅ Error recovery works  
-✅ Configuration system functional  
-✅ Logs to history.jsonl  
-✅ Can resume interrupted sessions  
+⚠️ All MVP criteria met (IN PROGRESS - 60% complete)  
+❌ Can execute multi-step tasks (PENDING - needs planner)  
+❌ Error recovery works (PENDING - needs loop integration)  
+⚠️ Configuration system functional (PARTIALLY - basic structure exists)  
+❌ Logs to history.jsonl (PENDING - logger skeleton exists)  
+❌ Can resume interrupted sessions (PENDING - needs state persistence)  
+
+### Remaining Implementation Tasks
+
+**Priority 1 - Core Functionality** (Required for MVP):
+1. [ ] Complete `src/core/planner.ts` - Task planning and management
+2. [ ] Complete `src/core/context.ts` - Conversation context builder
+3. [ ] Complete `src/io/prompt.ts` - System prompt construction  
+4. [ ] Complete `src/core/loop.ts` - Full autonomous loop logic
+5. [ ] Test OpenCode integration end-to-end
+6. [ ] Implement phase detection and transition logic
+
+**Priority 2 - Polish & Testing** (Required for Dogfooding):
+7. [ ] Complete `src/io/output.ts` - Formatted output with ora/chalk
+8. [ ] Complete `src/utils/logger.ts` - Structured logging to history.jsonl
+9. [ ] Complete configuration loading (global + project merge)
+10. [ ] Write integration tests for full flow
+11. [ ] Run smoke tests and fix issues
+12. [ ] Test npm link installation globally
+
+**Priority 3 - Nice to Have** (Post-MVP):
+13. [ ] Live input handler for user corrections
+14. [ ] Progress tracking metrics
+15. [ ] Phase timeout protection
+16. [ ] Error recovery with retries
+17. [ ] State persistence for resumption
+
+---
+
+## Implementation Recommendations
+
+### Quick Wins (Complete These First)
+
+1. **Planner Implementation** (~2-3 hours)
+   - Simple task queue in memory
+   - Single task for MVP (user's prompt)
+   - Save/load from .sheen/plan.md
+   
+2. **Context Builder** (~1-2 hours)
+   - Build system prompt with sheen's purpose
+   - Include project type from detector
+   - Add available tools list
+   - Format as string for OpenCode
+   
+3. **Prompt Builder** (~1 hour)
+   - Combine system prompt + context + task
+   - Format for OpenCode subprocess input
+   
+4. **Integration Test** (~2-3 hours)
+   - Create test directory
+   - Run simple prompt: "create hello.txt"
+   - Debug and fix issues
+   - Verify file created
+
+**Total estimated time to MVP: 6-11 hours of focused work**
+
+### Testing Strategy for MVP
+
+Instead of comprehensive tests, focus on:
+1. One smoke test script that exercises the full flow
+2. Manual testing with various prompts
+3. Fix issues as they arise
+4. Add more tests after MVP works
+
+### Dogfooding Approach
+
+Once basic flow works:
+1. Test `npm link` installation
+2. Run `sheen "add error handling to OpenCode client"`
+3. Observe how sheen performs on itself
+4. Fix critical issues
+5. Iterate with more complex tasks
 
 ---
 
 **PLAN COMPLETE - Ready for Implementation**
 
-All technical designs, API contracts, and implementation plans are defined. Ready to begin Phase 1 (Task 1.1) - Initialize Node.js/TypeScript project.
+All technical designs, API contracts, and implementation plans are defined. Current state assessed at 60% complete with clear remaining tasks. Priority 1 tasks will complete MVP. Estimated 6-11 hours of focused implementation work remaining.
+
+**Next Steps**: 
+1. Implement src/core/planner.ts
+2. Implement src/core/context.ts  
+3. Implement src/io/prompt.ts
+4. Run integration test
+5. Debug and iterate until smoke test passes
