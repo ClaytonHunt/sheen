@@ -1,11 +1,203 @@
-import { AgentConfig, ExecutionState, ProgressMetrics } from '../utils/types.js';
+import { AgentConfig, ExecutionState, ProgressMetrics, ToolContext } from '../utils/types.js';
 import { logger } from '../utils/logger.js';
+import { TaskPlanner } from './planner.js';
+import { ContextManager } from './context.js';
+import { PromptBuilder } from '../io/prompt.js';
+import { OpenCodeClient } from '../opencode/client.js';
+import { ToolCallAdapter } from '../opencode/adapter.js';
+import { ToolRegistry } from '../tools/registry.js';
 
 /**
  * Execution loop for autonomous agent iterations
  */
 export class ExecutionLoop {
   constructor(private config: AgentConfig) {}
+
+  /**
+   * Execute main autonomous loop
+   * 
+   * @param state - Current execution state
+   * @param planner - Task planner instance
+   * @param contextManager - Context manager instance
+   * @param promptBuilder - Prompt builder instance
+   * @param opencode - OpenCode client instance
+   * @param adapter - Tool call adapter instance
+   * @param toolRegistry - Tool registry instance
+   */
+  async execute(
+    state: ExecutionState,
+    planner: TaskPlanner,
+    contextManager: ContextManager,
+    promptBuilder: PromptBuilder,
+    opencode: OpenCodeClient,
+    adapter: ToolCallAdapter,
+    toolRegistry: ToolRegistry
+  ): Promise<void> {
+    logger.info('Starting execution loop');
+    
+    while (this.shouldContinue(state)) {
+      try {
+        // Save previous metrics for progress detection
+        const prevMetrics = { ...state.metrics };
+        
+        // Increment iteration
+        this.incrementIteration(state);
+        
+        // Get next task (or current task if in progress)
+        let task = state.currentTask;
+        if (!task) {
+          const nextTask = await planner.getNextTask(state);
+          if (!nextTask) {
+            logger.info('No more tasks to execute');
+            state.phase = 'complete';
+            break;
+          }
+          
+          task = nextTask;
+          
+          // Mark task as in progress
+          await planner.updateTask(task.id, { 
+            status: 'in_progress',
+            startedAt: new Date()
+          });
+          state.currentTask = task;
+          logger.info(`Starting task: ${task.description}`);
+        }
+        
+        // Build conversation context
+        const context = contextManager.buildContext(
+          task,
+          toolRegistry.getAll(),
+          state
+        );
+        
+        // Build prompt with system instructions
+        const prompt = promptBuilder.buildPrompt(
+          task.description,
+          context
+        );
+        
+        // Execute OpenCode with prompt
+        logger.debug(`Executing OpenCode (iteration ${state.iteration})`);
+        const response = await opencode.execute(prompt, context);
+        
+        // Add assistant response to history
+        if (response.thinking) {
+          contextManager.addAssistantMessage(response.thinking);
+        }
+        
+        // Check for phase completion
+        if (response.phaseComplete && response.phaseMarker) {
+          logger.info(`Phase marker detected: ${response.phaseMarker}`);
+          
+          // Mark current task as complete
+          if (state.currentTask) {
+            await planner.updateTask(state.currentTask.id, { 
+              status: 'completed',
+              completedAt: new Date()
+            });
+            state.currentTask = undefined;
+          }
+          
+          // Update phase
+          state.phase = 'complete';
+          break;
+        }
+        
+        // Parse and execute tool calls
+        if (response.thinking) {
+          const toolCalls = adapter.parseToolCalls(response.thinking);
+          
+          if (toolCalls.length > 0) {
+            logger.info(`Executing ${toolCalls.length} tool call(s)`);
+            
+            // Build tool context
+            const toolContext: ToolContext = {
+              workingDir: state.projectContext.rootDir,
+              config: this.config,
+              projectContext: state.projectContext
+            };
+            
+            // Execute tool calls
+            const results = await adapter.executeToolCalls(toolCalls, toolContext);
+            
+            // Add tool results to history
+            for (const result of results) {
+              contextManager.addToolResult(result.toolCall.tool, result.result);
+            }
+            
+            // Update metrics
+            const filesChanged = new Set<string>();
+            for (const result of results) {
+              if (result.result.filesChanged) {
+                result.result.filesChanged.forEach(f => filesChanged.add(f));
+              }
+            }
+            
+            if (filesChanged.size > 0) {
+              state.metrics.fileCount += filesChanged.size;
+              logger.debug(`Modified ${filesChanged.size} file(s)`);
+            }
+            
+            // Log execution summary
+            const summary = adapter.summarizeExecution(results);
+            logger.info(`Tool execution: ${summary}`);
+          } else {
+            logger.debug('No tool calls found in response');
+          }
+        }
+        
+        // Check if task is complete
+        // (For MVP, we assume task is complete after one iteration)
+        // In a more sophisticated implementation, we'd check for completion criteria
+        if (state.currentTask) {
+          await planner.updateTask(state.currentTask.id, { 
+            status: 'completed',
+            completedAt: new Date()
+          });
+          logger.info(`Completed task: ${state.currentTask.description}`);
+          state.currentTask = undefined;
+        }
+        
+        // Update progress tracking
+        this.updateProgress(state, prevMetrics);
+        
+        // Sleep between iterations
+        await this.sleep();
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error(`Iteration ${state.iteration} failed: ${errorMessage}`);
+        
+        // Record error
+        state.errors.push({
+          iteration: state.iteration,
+          phase: state.phase,
+          error: error as Error,
+          recovered: false,
+          timestamp: new Date()
+        });
+        
+        // Mark current task as failed if we have one
+        if (state.currentTask) {
+          await planner.updateTask(state.currentTask.id, { 
+            status: 'failed'
+          });
+          state.currentTask = undefined;
+        }
+        
+        // Check if we should continue or stop
+        const recentErrors = state.errors.filter(e => !e.recovered).length;
+        if (recentErrors >= this.config.errorRecovery.maxOpenCodeErrors) {
+          logger.error('Too many errors, stopping execution');
+          break;
+        }
+      }
+    }
+    
+    logger.info('Execution loop finished');
+    logger.info(`Completed ${state.iteration} iteration(s)`);
+  }
 
   /**
    * Check if execution should continue

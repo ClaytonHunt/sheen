@@ -6,17 +6,24 @@ import { fileTools } from '../tools/file.js';
 import { gitTools } from '../tools/git.js';
 import { shellTools } from '../tools/shell.js';
 import { logger } from '../utils/logger.js';
+import { ExecutionLoop } from './loop.js';
+import { TaskPlanner } from './planner.js';
+import { ContextManager } from './context.js';
+import { PromptBuilder } from '../io/prompt.js';
 
 /**
  * Main agent orchestrator
  * 
  * Coordinates OpenCode execution, tool calls, and task management.
- * This is a minimal MVP implementation focusing on basic prompt execution.
  */
 export class Agent {
   private opencode: OpenCodeClient;
   private adapter: ToolCallAdapter;
   private toolRegistry: ToolRegistry;
+  private executionLoop: ExecutionLoop;
+  private planner: TaskPlanner;
+  private contextManager: ContextManager;
+  private promptBuilder: PromptBuilder;
   private state: ExecutionState;
   private running: boolean = false;
 
@@ -32,6 +39,10 @@ export class Agent {
     
     this.opencode = new OpenCodeClient(config.opencode);
     this.adapter = new ToolCallAdapter(this.toolRegistry, projectContext);
+    this.executionLoop = new ExecutionLoop(config);
+    this.planner = new TaskPlanner(projectContext);
+    this.contextManager = new ContextManager(projectContext);
+    this.promptBuilder = new PromptBuilder();
 
     // Initialize execution state
     this.state = {
@@ -67,8 +78,22 @@ export class Agent {
     logger.info(`Prompt: ${initialPrompt}`);
 
     try {
-      // Simple single-iteration execution for MVP
-      await this.executeIteration(initialPrompt);
+      // Create initial plan from prompt
+      this.state.tasks = await this.planner.createPlan(initialPrompt);
+      
+      // Add user prompt to history
+      this.contextManager.addUserMessage(initialPrompt);
+      
+      // Execute main loop
+      await this.executionLoop.execute(
+        this.state,
+        this.planner,
+        this.contextManager,
+        this.promptBuilder,
+        this.opencode,
+        this.adapter,
+        this.toolRegistry
+      );
       
       logger.info('Agent execution complete');
       return this.state;
@@ -87,73 +112,6 @@ export class Agent {
       throw error;
     } finally {
       this.running = false;
-    }
-  }
-
-  /**
-   * Execute a single iteration
-   */
-  private async executeIteration(prompt: string): Promise<void> {
-    this.state.iteration++;
-    this.state.lastActivityAt = new Date();
-    
-    logger.info(`Iteration ${this.state.iteration}: Executing OpenCode`);
-
-    // Build conversation context
-    const context = {
-      projectContext: this.projectContext,
-      currentTask: this.state.currentTask,
-      recentHistory: [],
-      availableTools: this.toolRegistry.getAll()
-    };
-
-    // Execute OpenCode with prompt
-    const response = await this.opencode.execute(prompt, context);
-    
-    // Log thinking/output
-    if (response.thinking) {
-      logger.info('OpenCode response received');
-      if (this.config.logLevel === 'debug') {
-        logger.debug('OpenCode output:', { output: response.thinking });
-      }
-    }
-
-    // Check for phase completion
-    if (response.phaseComplete && response.phaseMarker) {
-      logger.info(`Phase marker detected: ${response.phaseMarker}`);
-    }
-
-    // Parse tool calls from output
-    if (response.thinking) {
-      const toolCalls = this.adapter.parseToolCalls(response.thinking);
-      
-      if (toolCalls.length > 0) {
-        logger.info(`Found ${toolCalls.length} tool call(s) to execute`);
-        
-        // Execute tool calls
-        const toolContext = {
-          workingDir: this.projectContext.rootDir,
-          config: this.config,
-          projectContext: this.projectContext
-        };
-        
-        const results = await this.adapter.executeToolCalls(toolCalls, toolContext);
-        
-        // Log summary
-        const summary = this.adapter.summarizeExecution(results);
-        logger.info(`Tool execution: ${summary}`);
-        
-        // Update metrics
-        const filesChanged = new Set<string>();
-        for (const result of results) {
-          if (result.result.filesChanged) {
-            result.result.filesChanged.forEach(f => filesChanged.add(f));
-          }
-        }
-        this.state.metrics.fileCount += filesChanged.size;
-      } else {
-        logger.info('No tool calls found in output');
-      }
     }
   }
 
