@@ -8,7 +8,7 @@ Build the next generation of Sheen as a Node.js/TypeScript CLI tool that can be 
 
 ## Current Project State
 
-**Phase:** PLANNING
+**Phase:** IMPLEMENTATION
 **Status:** Starting from scratch
 
 **Goal:** Build a working version of sheen that can then be used to build itself (dogfooding!)
@@ -137,8 +137,8 @@ A working bash version exists in `sheen.sh` (from AdventureEngine). Key features
 
 ## Current Iteration
 
-**Phase:** PLANNING
-**Next Action:** PLANNING
+**Phase:** IMPLEMENTATION
+**Next Action:** IMPLEMENTATION
 
 ### Task 1.1 Checklist:
 - [ ] Create package.json with bin field for global CLI
