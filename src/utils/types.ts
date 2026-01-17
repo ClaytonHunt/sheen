@@ -22,10 +22,12 @@ export interface AgentConfig {
 
 export interface OpenCodeConfig {
   model?: string;
+  agent?: string; // OpenCode agent to use (e.g., 'build', 'compaction', 'general')
   endpoint?: string;
   apiKey?: string;
   streamOutput: boolean;
   contextWindow: number;
+  timeout?: number; // Timeout in milliseconds (default: 300000 = 5 minutes)
 }
 
 /**
@@ -36,9 +38,9 @@ export interface AIConfig {
   engine: 'opencode' | 'direct-ai-sdk';
   
   // Provider settings (for direct-ai-sdk)
-  provider: 'anthropic' | 'openai' | 'google';
+  provider: 'anthropic' | 'openai' | 'google' | 'github';
   model: string;
-  apiKey?: string; // Falls back to environment variables
+  apiKey?: string; // Falls back to environment variables (ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, GITHUB_TOKEN)
   
   // Execution settings
   maxSteps: number; // AI SDK multi-step reasoning limit

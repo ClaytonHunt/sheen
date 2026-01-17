@@ -8,9 +8,11 @@ import { logger } from '../utils/logger.js';
 export class OpenCodeClient {
   private config: OpenCodeConfig;
   private sessionActive: boolean = false;
+  private currentProcess?: ChildProcess;
 
   constructor(config: OpenCodeConfig) {
     this.config = config;
+    logger.info(`OpenCodeClient initialized (streamOutput: ${config.streamOutput})`);
   }
 
   /**
@@ -26,6 +28,10 @@ export class OpenCodeClient {
     continueSession: boolean = true
   ): Promise<OpenCodeResponse> {
     logger.debug('Executing OpenCode prompt', { prompt: prompt.substring(0, 100) });
+    logger.info(`📝 Sending prompt to OpenCode (${prompt.length} characters)`);
+    
+    // Log first 500 chars of prompt to verify our instructions are included
+    logger.debug('Prompt preview:', prompt.substring(0, 500));
 
     try {
       const output = await this.runOpenCode(prompt, continueSession);
@@ -61,6 +67,11 @@ export class OpenCodeClient {
         args.push('--model', this.config.model);
       }
       
+      // Add agent flag if configured (for autonomous operation)
+      if (this.config.agent) {
+        args.push('--agent', this.config.agent);
+      }
+      
       // WORKAROUND: Disable --continue flag due to OpenCode bug with message type conversion
       // Error: AI_InvalidPromptError: The messages must be a ModelMessage[]
       // TODO: Re-enable when OpenCode fixes UIMessage[] -> ModelMessage[] conversion
@@ -71,45 +82,78 @@ export class OpenCodeClient {
       args.push(prompt);
       
       logger.debug(`Running: opencode ${args.join(' ')}`);
+      logger.info('🤖 OpenCode is processing your request...');
       
-      // Spawn OpenCode process
+      // Spawn OpenCode process with pipes for capturing output
       const proc: ChildProcess = spawn('opencode', args, {
         cwd: process.cwd(),
         shell: true,
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        // Disable buffering
+        env: { ...process.env, PYTHONUNBUFFERED: '1', NODE_NO_READLINE: '1' }
       });
+      
+      // Store reference for cleanup
+      this.currentProcess = proc;
 
       let stdout = '';
       let stderr = '';
+      let timedOut = false;
+      
+      // Set up timeout (default: 5 minutes)
+      const timeout = this.config.timeout || 300000;
+      const timeoutHandle = setTimeout(() => {
+        timedOut = true;
+        logger.warn(`OpenCode request timed out after ${timeout / 1000}s`);
+        logger.warn('Killing OpenCode process...');
+        proc.kill('SIGTERM');
+        
+        // Force kill after 5 seconds if it doesn't terminate
+        setTimeout(() => {
+          if (!proc.killed) {
+            logger.warn('Force killing OpenCode process...');
+            proc.kill('SIGKILL');
+          }
+        }, 5000);
+      }, timeout);
 
-      // Collect stdout
+      // Collect stdout with immediate streaming
       if (proc.stdout) {
-        proc.stdout.on('data', (data: Buffer) => {
-          const text = data.toString();
-          stdout += text;
+        // Set encoding to reduce buffering
+        proc.stdout.setEncoding('utf8');
+        
+        proc.stdout.on('data', (data: string) => {
+          stdout += data;
           
-          // Stream output if enabled
+          // Stream output immediately if enabled
           if (this.config.streamOutput) {
-            process.stdout.write(text);
+            process.stdout.write(data);
           }
         });
       }
 
-      // Collect stderr
+      // Collect stderr with immediate streaming
       if (proc.stderr) {
-        proc.stderr.on('data', (data: Buffer) => {
-          const text = data.toString();
-          stderr += text;
+        // Set encoding to reduce buffering
+        proc.stderr.setEncoding('utf8');
+        
+        proc.stderr.on('data', (data: string) => {
+          stderr += data;
           
           if (this.config.streamOutput) {
-            process.stderr.write(text);
+            process.stderr.write(data);
           }
         });
       }
 
       // Handle process exit
       proc.on('close', (code: number | null) => {
-        if (code === 0) {
+        clearTimeout(timeoutHandle);
+        this.currentProcess = undefined;
+        
+        if (timedOut) {
+          reject(new Error(`OpenCode timed out after ${timeout / 1000} seconds`));
+        } else if (code === 0) {
           resolve(stdout);
         } else {
           reject(new Error(`OpenCode exited with code ${code}\n${stderr}`));
@@ -118,6 +162,8 @@ export class OpenCodeClient {
 
       // Handle process errors
       proc.on('error', (err: Error) => {
+        clearTimeout(timeoutHandle);
+        this.currentProcess = undefined;
         reject(new Error(`Failed to spawn OpenCode: ${err.message}`));
       });
     });
@@ -203,6 +249,23 @@ export class OpenCodeClient {
    */
   isSessionActive(): boolean {
     return this.sessionActive;
+  }
+  
+  /**
+   * Kill any running OpenCode process (for cleanup on exit)
+   */
+  cleanup(): void {
+    if (this.currentProcess && !this.currentProcess.killed) {
+      logger.info('Cleaning up OpenCode process...');
+      this.currentProcess.kill('SIGTERM');
+      
+      // Force kill after 2 seconds
+      setTimeout(() => {
+        if (this.currentProcess && !this.currentProcess.killed) {
+          this.currentProcess.kill('SIGKILL');
+        }
+      }, 2000);
+    }
   }
 
   /**

@@ -4,7 +4,8 @@ import { ProjectDetector } from './project/detector';
 import { SheenInitializer } from './project/initializer';
 import { GlobalConfig } from './config/global';
 import { Agent } from './core/agent';
-import { showVersion, showBanner } from './io/banner';
+import { showVersion, showBanner, getVersion } from './io/banner';
+import { createLoginCommand, createLogoutCommand, createAuthCommand } from './auth/commands.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -22,9 +23,12 @@ async function checkPlanExists(cwd: string): Promise<boolean> {
 }
 
 export async function runCLI() {
+  // Get version from package.json
+  const version = getVersion();
+  
   // Check for version flag before Commander processes it
   if (process.argv.includes('--version') || process.argv.includes('-V')) {
-    showVersion('0.1.1');
+    showVersion(version);
     process.exit(0);
   }
 
@@ -33,7 +37,7 @@ export async function runCLI() {
   program
     .name('sheen')
     .description('Autonomous coding agent with human oversight')
-    .version('0.1.1');
+    .version(version);
 
   // Main command with prompt
   program
@@ -49,8 +53,8 @@ export async function runCLI() {
       showBanner();
       console.log('Autonomous coding agent\n');
       
-      // Default to verbose (debug) mode
-      const logger = new Logger(options.verbose !== undefined ? (options.verbose ? 'debug' : 'info') : 'debug');
+      // Use info level by default (streamOutput handles OpenCode visibility)
+      const logger = new Logger(options.verbose ? 'debug' : 'info');
       
       logger.debug('CLI started', { prompt, options });
       logger.debug(`Working directory: ${process.cwd()}`);
@@ -75,9 +79,9 @@ export async function runCLI() {
           logger.info('📋 Initializing .sheen/ directory...');
           logger.debug(`Initializing with prompt: ${prompt || 'none'}`);
           await initializer.initialize(prompt);
-          logger.info('✓ Created .sheen/ directory');
+          logger.success('Created .sheen/ directory');
         } else {
-          logger.info('✓ Found existing .sheen/ directory');
+          logger.success('Found existing .sheen/ directory');
         }
         
         // Load configuration
@@ -88,7 +92,7 @@ export async function runCLI() {
           {
             maxIterations: parseInt(options.maxIterations),
             autoApprove: options.approveAll,
-            logLevel: options.verbose !== undefined ? (options.verbose ? 'debug' : 'info') : 'debug'
+            logLevel: options.verbose ? 'debug' : 'info'
           },
           undefined,
           globalConfig
@@ -123,9 +127,20 @@ export async function runCLI() {
           }
         }
         
-        // Create agent
+        // Create agent (async factory)
         logger.debug('Initializing Agent');
-        const agent = new Agent(config, projectContext);
+        const agent = await Agent.create(config, projectContext);
+        
+        // Setup signal handlers for graceful shutdown
+        const cleanup = () => {
+          logger.warn('\n🛑 Received interrupt signal (Ctrl+C)');
+          logger.info('Cleaning up...');
+          agent.cleanup();
+          process.exit(0);
+        };
+        
+        process.on('SIGINT', cleanup);
+        process.on('SIGTERM', cleanup);
         
         // Run agent
         if (isAutoMode) {
@@ -142,14 +157,14 @@ export async function runCLI() {
           }
           
           const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
-          logger.info(`✓ Found ${tasks.length} task(s) (${pendingTasks.length} pending)`);
+          logger.success(`Found ${tasks.length} task(s) (${pendingTasks.length} pending)`);
           logger.info('🤖 Starting agent in auto mode...');
           logger.info('');
           
           const state = await agent.run(); // No prompt = auto mode
           
           logger.info('');
-          logger.info('✅ Agent execution complete');
+          logger.success('Agent execution complete');
           logger.info(`   Iterations: ${state.iteration}`);
           logger.info(`   Files modified: ${state.metrics.fileCount}`);
           
@@ -161,7 +176,7 @@ export async function runCLI() {
           const state = await agent.run(effectivePrompt);
           
           logger.info('');
-          logger.info('✅ Agent execution complete');
+          logger.success('Agent execution complete');
           logger.info(`   Iterations: ${state.iteration}`);
           logger.info(`   Files modified: ${state.metrics.fileCount}`);
         }
@@ -195,18 +210,23 @@ export async function runCLI() {
         
         logger.info('📋 Initializing .sheen/ directory...');
         await initializer.initialize(promptArg || 'Project improvements');
-        logger.info('✓ Created .sheen/ directory');
+        logger.success('Created .sheen/ directory');
         logger.info('  - plan.md');
         logger.info('  - context.md');
         logger.info('  - config.json');
         logger.info('  - history.jsonl');
-        logger.info('🎉 Ready to use sheen!');
+        logger.success('Ready to use sheen!');
         
       } catch (error) {
         logger.error('❌ Error', error as Error);
         process.exit(1);
       }
     });
+
+  // Auth commands
+  program.addCommand(createLoginCommand());
+  program.addCommand(createLogoutCommand());
+  program.addCommand(createAuthCommand());
 
   await program.parseAsync(process.argv);
 }

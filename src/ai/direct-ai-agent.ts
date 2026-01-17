@@ -32,10 +32,13 @@ export class DirectAIAgent implements AIAgent {
   private tools: Record<string, any> = {};
   private conversation: ConversationManager;
   private providerName: string;
+  private config: AIConfig;
+  private abortController?: AbortController;
 
   constructor(model: LanguageModel, config: AIConfig, providerName: string = 'unknown') {
     this.model = model;
     this.providerName = providerName;
+    this.config = config;
     
     // Create conversation manager with config
     this.conversation = new ConversationManager({
@@ -69,6 +72,16 @@ Be methodical, test frequently, and commit often with clear messages.`;
 
     // Add user message to conversation
     this.conversation.addUserMessage(prompt);
+    
+    // Create abort controller for timeout
+    this.abortController = new AbortController();
+    const timeout = this.config.timeout || 300000; // Default 5 minutes
+    
+    const timeoutHandle = setTimeout(() => {
+      if (this.abortController) {
+        this.abortController.abort();
+      }
+    }, timeout);
 
     try {
       // Generate with AI SDK
@@ -76,8 +89,12 @@ Be methodical, test frequently, and commit often with clear messages.`;
         model: this.model,
         messages: this.conversation.getCoreMessages(),
         tools: this.tools,
+        abortSignal: this.abortController.signal,
         // Note: AI SDK v6+ handles multi-step tool calling automatically
       });
+      
+      clearTimeout(timeoutHandle);
+      this.abortController = undefined;
 
       // Add assistant response to conversation
       this.conversation.addAssistantMessage(result.text);
@@ -99,7 +116,24 @@ Be methodical, test frequently, and commit often with clear messages.`;
         },
       };
     } catch (error: any) {
+      clearTimeout(timeoutHandle);
+      this.abortController = undefined;
+      
       const executionTimeMs = Date.now() - startTime;
+      
+      // Check if it was a timeout/abort
+      if (error.name === 'AbortError') {
+        return {
+          success: false,
+          response: `AI request timed out after ${timeout / 1000} seconds`,
+          toolCalls: [],
+          metadata: {
+            tokensUsed: 0,
+            executionTimeMs,
+            iterationsUsed: 0,
+          },
+        };
+      }
 
       return {
         success: false,
@@ -192,6 +226,16 @@ Be methodical, test frequently, and commit often with clear messages.`;
    */
   resetConversation(): void {
     this.conversation.clear();
+  }
+  
+  /**
+   * Cleanup - abort any ongoing requests
+   */
+  cleanup(): void {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = undefined;
+    }
   }
 
   /**

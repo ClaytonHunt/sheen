@@ -45,7 +45,7 @@ export class GlobalConfig {
       sleepBetweenIterations: 5,
       autoCommit: true,
       autoApprove: false,
-      logLevel: 'debug', // Default to verbose (debug) mode like sheen.sh
+      logLevel: 'info', // Default log level (streamOutput handles OpenCode visibility)
       // AI SDK configuration (v0.2.0) - defaults to OpenCode for backward compatibility
       ai: {
         engine: 'opencode',
@@ -66,8 +66,10 @@ export class GlobalConfig {
       },
       opencode: {
         model: 'github-copilot/claude-sonnet-4.5',
+        agent: 'general', // Use 'general' subagent which denies questions for autonomous operation
         streamOutput: true,
-        contextWindow: 200000
+        contextWindow: 200000,
+        timeout: 300000 // 5 minutes default timeout
       },
       tools: ['file', 'git', 'shell'],
       excludePatterns: ['node_modules', '.git', 'dist', 'build', 'coverage'],

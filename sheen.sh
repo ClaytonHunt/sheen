@@ -32,7 +32,6 @@ ITERATION=0
 MAX_ITERATIONS=100
 CURRENT_PHASE="DISCOVERY"
 SLEEP_BETWEEN_ITERATIONS=5
-VERBOSE=false
 
 # Phase timeout limits (iterations)
 MAX_DISCOVERY_ITERATIONS=5
@@ -57,18 +56,15 @@ MAX_NO_PROGRESS=5
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -v|--verbose)
-            VERBOSE=true
-            shift
-            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Sheen - Autonomous Development Agent"
             echo ""
             echo "Options:"
-            echo "  -v, --verbose    Show detailed output (OpenCode operations in real-time)"
             echo "  -h, --help       Show this help message"
+            echo ""
+            echo "Note: OpenCode output is always shown in real-time"
             echo ""
             echo "Configuration:"
             echo "  Edit .sheenconfig to change settings"
@@ -251,10 +247,6 @@ track_progress() {
     LAST_FILE_COUNT=$((10#${LAST_FILE_COUNT:-0}))
     LAST_COMMIT_HASH=${LAST_COMMIT_HASH:-unknown}
     
-    if [ "$VERBOSE" = true ]; then
-        log METRIC "Progress: Tests=$current_test_count Files=$current_file_count Commit=$current_commit_hash"
-    fi
-    
     # Check if progress is being made
     if [ "$phase" = "IMPLEMENTATION" ]; then
         if [ $current_test_count -eq $LAST_TEST_COUNT ] && \
@@ -314,107 +306,69 @@ detect_opencode_errors() {
     return 0
 }
 
+get_next_pending_task() {
+    # Check if .sheen/plan.md exists
+    if [ ! -f ".sheen/plan.md" ]; then
+        echo ""
+        return
+    fi
+    
+    # Parse plan.md and find the first pending or in_progress task
+    # Tasks are marked with status like "**Status**: pending" or "**Status**: in_progress"
+    local current_task_id=""
+    local current_status=""
+    local current_description=""
+    local in_task_block=false
+    
+    while IFS= read -r line; do
+        # Detect task block start (### Task task_id)
+        if [[ $line =~ ^###[[:space:]]Task[[:space:]]([^[:space:]]+) ]]; then
+            # If we found a pending/in_progress task in previous block, return it
+            if [ -n "$current_task_id" ] && { [ "$current_status" = "pending" ] || [ "$current_status" = "in_progress" ]; }; then
+                echo "$current_task_id|$current_description"
+                return
+            fi
+            
+            # Start new task block
+            current_task_id="${BASH_REMATCH[1]}"
+            current_status=""
+            current_description=""
+            in_task_block=true
+        elif [ "$in_task_block" = true ]; then
+            # Parse status line
+            if [[ $line =~ ^\*\*Status\*\*:[[:space:]](.+)$ ]]; then
+                current_status="${BASH_REMATCH[1]}"
+            fi
+            # Parse description line
+            if [[ $line =~ ^\*\*Description\*\*:[[:space:]](.+)$ ]]; then
+                current_description="${BASH_REMATCH[1]}"
+            fi
+        fi
+    done < ".sheen/plan.md"
+    
+    # Check last task block
+    if [ -n "$current_task_id" ] && { [ "$current_status" = "pending" ] || [ "$current_status" = "in_progress" ]; }; then
+        echo "$current_task_id|$current_description"
+        return
+    fi
+    
+    echo ""
+}
+
 detect_phase_completion() {
     local phase="$1"
     
-    if [ "$VERBOSE" = true ]; then
-        log INFO "🔍 Checking phase completion for: $phase" >&2
+    # First, check if there are any pending tasks in .sheen/plan.md
+    local next_task=$(get_next_pending_task)
+    
+    if [ -n "$next_task" ]; then
+        # There are still pending tasks, continue working
+        echo "CONTINUE"
+        return
     fi
     
-    # Check if phase completion marker exists in the corresponding file
-    # Look in common locations: root directory, docs/, .sheen/
-    case $phase in
-        DISCOVERY)
-            if [ "$VERBOSE" = true ]; then
-                [ -f "DISCOVERY.md" ] && log INFO "  ✓ Found ./DISCOVERY.md" >&2 || log INFO "  ✗ No ./DISCOVERY.md" >&2
-                [ -f "docs/DISCOVERY.md" ] && log INFO "  ✓ Found docs/DISCOVERY.md" >&2
-                [ -f ".sheen/DISCOVERY.md" ] && log INFO "  ✓ Found .sheen/DISCOVERY.md" >&2
-            fi
-            
-            # Check multiple possible locations for DISCOVERY.md
-            if ([ -f "DISCOVERY.md" ] && grep -q "DISCOVERY COMPLETE" DISCOVERY.md) || \
-               ([ -f "docs/DISCOVERY.md" ] && grep -q "DISCOVERY COMPLETE" "docs/DISCOVERY.md") || \
-               ([ -f ".sheen/DISCOVERY.md" ] && grep -q "DISCOVERY COMPLETE" ".sheen/DISCOVERY.md"); then
-                if [ "$VERBOSE" = true ]; then
-                    log INFO "  ✓ Found 'DISCOVERY COMPLETE' marker" >&2
-                fi
-                echo "PLANNING"
-            else
-                if [ "$VERBOSE" = true ]; then
-                    log INFO "  ✗ No completion marker found" >&2
-                fi
-                echo "CONTINUE"
-            fi
-            ;;
-        PLANNING)
-            if [ "$VERBOSE" = true ]; then
-                [ -f "PLAN.md" ] && log INFO "  ✓ Found ./PLAN.md" >&2 || log INFO "  ✗ No ./PLAN.md" >&2
-                [ -f "docs/PLAN.md" ] && log INFO "  ✓ Found docs/PLAN.md" >&2
-                [ -f ".sheen/plan.md" ] && log INFO "  ✓ Found .sheen/plan.md" >&2
-            fi
-            
-            # Check multiple possible locations for PLAN.md (note: .sheen uses lowercase plan.md)
-            if ([ -f "PLAN.md" ] && grep -q "PLAN COMPLETE" PLAN.md) || \
-               ([ -f "docs/PLAN.md" ] && grep -q "PLAN COMPLETE" "docs/PLAN.md") || \
-               ([ -f ".sheen/plan.md" ] && grep -q "PLAN COMPLETE" ".sheen/plan.md") || \
-               ([ -f ".sheen/PLAN.md" ] && grep -q "PLAN COMPLETE" ".sheen/PLAN.md"); then
-                if [ "$VERBOSE" = true ]; then
-                    log INFO "  ✓ Found 'PLAN COMPLETE' marker" >&2
-                fi
-                echo "IMPLEMENTATION"
-            else
-                if [ "$VERBOSE" = true ]; then
-                    log INFO "  ✗ No completion marker found" >&2
-                fi
-                echo "CONTINUE"
-            fi
-            ;;
-        IMPLEMENTATION)
-            if [ "$VERBOSE" = true ]; then
-                [ -f "PROJECT_STATUS.md" ] && log INFO "  ✓ Found PROJECT_STATUS.md" >&2 || log INFO "  ✗ No PROJECT_STATUS.md" >&2
-            fi
-            
-            # Check for implementation completion marker in PROJECT_STATUS.md or similar files
-            if ([ -f "PROJECT_STATUS.md" ] && grep -q "IMPLEMENTATION COMPLETE" PROJECT_STATUS.md) || \
-               ([ -f "STATUS.md" ] && grep -q "IMPLEMENTATION COMPLETE" STATUS.md) || \
-               ([ -f ".sheen/status.md" ] && grep -q "IMPLEMENTATION COMPLETE" ".sheen/status.md"); then
-                if [ "$VERBOSE" = true ]; then
-                    log INFO "  ✓ Found 'IMPLEMENTATION COMPLETE' marker" >&2
-                fi
-                echo "VALIDATION"
-            else
-                if [ "$VERBOSE" = true ]; then
-                    log INFO "  ✗ No completion marker found" >&2
-                fi
-                echo "CONTINUE"
-            fi
-            ;;
-        VALIDATION)
-            if [ "$VERBOSE" = true ]; then
-                [ -f "VALIDATION.md" ] && log INFO "  ✓ Found ./VALIDATION.md" >&2 || log INFO "  ✗ No ./VALIDATION.md" >&2
-                [ -f "docs/VALIDATION.md" ] && log INFO "  ✓ Found docs/VALIDATION.md" >&2
-                [ -f ".sheen/VALIDATION.md" ] && log INFO "  ✓ Found .sheen/VALIDATION.md" >&2
-            fi
-            
-            # Check multiple possible locations for VALIDATION.md
-            if ([ -f "VALIDATION.md" ] && grep -q "VALIDATION COMPLETE" VALIDATION.md) || \
-               ([ -f "docs/VALIDATION.md" ] && grep -q "VALIDATION COMPLETE" "docs/VALIDATION.md") || \
-               ([ -f ".sheen/VALIDATION.md" ] && grep -q "VALIDATION COMPLETE" ".sheen/VALIDATION.md"); then
-                if [ "$VERBOSE" = true ]; then
-                    log INFO "  ✓ Found 'VALIDATION COMPLETE' marker" >&2
-                fi
-                echo "COMPLETE"
-            else
-                if [ "$VERBOSE" = true ]; then
-                    log INFO "  ✗ No completion marker found" >&2
-                fi
-                echo "CONTINUE"
-            fi
-            ;;
-        *)
-            echo "CONTINUE"
-            ;;
-    esac
+    # No pending tasks found, all tasks are complete
+    echo "COMPLETE"
 }
 
 run_opencode() {
@@ -432,25 +386,49 @@ run_opencode() {
     # Get commit count before OpenCode runs (for tracking)
     local commits_before=$(git rev-list --count HEAD 2>/dev/null || echo "0")
     
-    # Prepare the prompt based on phase
+    # Get the next pending task from .sheen/plan.md
+    local next_task=$(get_next_pending_task)
+    
+    # Prepare the prompt based on whether we have a task from plan.md
     local prompt_text
-    case $phase in
-        DISCOVERY)
-            prompt_text="Begin Discovery Phase: Review project documentation and planning files (check for .sheen/plan.md, docs/, or other planning documents). Analyze the requirements and create DISCOVERY.md documenting your findings, architecture decisions, and technical approach. End with 'DISCOVERY COMPLETE - Ready for Planning'"
-            ;;
-        PLANNING)
-            prompt_text="Begin Planning Phase: Based on DISCOVERY.md and project documentation, create PLAN.md with detailed implementation plan including: architecture/design decisions, API contracts (if applicable), module structure, test strategy, and implementation steps. End with 'PLAN COMPLETE - Ready for Implementation'"
-            ;;
-        IMPLEMENTATION)
-            prompt_text="Continue Implementation Phase: Follow PLAN.md and implement features using best practices for this project type. Use TDD when appropriate (write tests first, implement minimal code, refactor). CRITICAL: Commit frequently after completing logical units of work with 'git add -A && git commit -m \"descriptive message\"'. When all planned features are implemented and working, update PROJECT_STATUS.md and end with 'IMPLEMENTATION COMPLETE - All features working'"
-            ;;
-        VALIDATION)
-            prompt_text="Begin Validation Phase: Validate the implementation against original requirements and acceptance criteria from planning documents. Run all tests and checks appropriate for this project. Create VALIDATION.md documenting test results, coverage, and validation status. End with 'VALIDATION COMPLETE - Ready for review'"
-            ;;
-        *)
-            prompt_text="Continue with current phase: $phase"
-            ;;
-    esac
+    if [ -n "$next_task" ]; then
+        local task_id=$(echo "$next_task" | cut -d'|' -f1)
+        local task_description=$(echo "$next_task" | cut -d'|' -f2)
+        
+        log INFO "Working on task: $task_id" >&2
+        log INFO "Description: $task_description" >&2
+        
+        prompt_text="Work on the following task from .sheen/plan.md:
+
+Task ID: $task_id
+Description: $task_description
+
+IMPORTANT: When you complete this task:
+1. Update .sheen/plan.md to mark task $task_id as 'completed' (change **Status**: pending to **Status**: completed)
+2. Add a completion timestamp (**Completed**: $(date -u +"%Y-%m-%dT%H:%M:%S.000Z"))
+3. Commit your changes with: git add -A && git commit -m \"feat: complete task $task_id\"
+
+Follow best practices for this project type. Write tests if appropriate. Make atomic commits as you make progress."
+    else
+        # Fallback to phase-based prompts if no tasks in plan.md
+        case $phase in
+            DISCOVERY)
+                prompt_text="Begin Discovery Phase: Review project documentation and planning files (check for .sheen/plan.md, docs/, or other planning documents). Analyze the requirements and create DISCOVERY.md documenting your findings, architecture decisions, and technical approach. End with 'DISCOVERY COMPLETE - Ready for Planning'"
+                ;;
+            PLANNING)
+                prompt_text="Begin Planning Phase: Based on DISCOVERY.md and project documentation, create PLAN.md with detailed implementation plan including: architecture/design decisions, API contracts (if applicable), module structure, test strategy, and implementation steps. End with 'PLAN COMPLETE - Ready for Implementation'"
+                ;;
+            IMPLEMENTATION)
+                prompt_text="Continue Implementation Phase: Follow PLAN.md and implement features using best practices for this project type. Use TDD when appropriate (write tests first, implement minimal code, refactor). CRITICAL: Commit frequently after completing logical units of work with 'git add -A && git commit -m \"descriptive message\"'. When all planned features are implemented and working, update PROJECT_STATUS.md and end with 'IMPLEMENTATION COMPLETE - All features working'"
+                ;;
+            VALIDATION)
+                prompt_text="Begin Validation Phase: Validate the implementation against original requirements and acceptance criteria from planning documents. Run all tests and checks appropriate for this project. Create VALIDATION.md documenting test results, coverage, and validation status. End with 'VALIDATION COMPLETE - Ready for review'"
+                ;;
+            *)
+                prompt_text="Continue with current phase: $phase"
+                ;;
+        esac
+    fi
     
     # Run OpenCode with the prompt
     log INFO "Prompt: $prompt_text" >&2
@@ -459,26 +437,11 @@ run_opencode() {
     # NOTE: --continue flag removed due to OpenCode bug with JSON parsing
     # See: src/opencode/client.ts:59-64 for details on UIMessage/ModelMessage conversion issue
     local opencode_exit_code=0
-    if [ "$VERBOSE" = true ]; then
-        # Verbose mode: Show OpenCode output in real-time
-        log INFO "Running OpenCode in VERBOSE mode (live output)..." >&2
-        echo "" >&2
-        opencode run --model github-copilot/claude-sonnet-4.5 "$prompt_text" 2>&1 | tee "$log_file" >&2 || opencode_exit_code=$?
-        echo "" >&2
-    else
-        # Normal mode: Run quietly and show summary
-        opencode run --model github-copilot/claude-sonnet-4.5 "$prompt_text" > "$log_file" 2>&1 || opencode_exit_code=$?
-        
-        # Show a summary of what happened
-        local line_count=$(wc -l < "$log_file")
-        log INFO "OpenCode completed ($line_count lines of output - see $log_file for details)" >&2
-        
-        # Show last few lines as a preview
-        echo "" >&2
-        log INFO "Last 5 lines of output:" >&2
-        tail -5 "$log_file" >&2
-        echo "" >&2
-    fi
+    # Always show OpenCode output in real-time
+    log INFO "Running OpenCode (live output)..." >&2
+    echo "" >&2
+    opencode run --model github-copilot/claude-sonnet-4.5 "$prompt_text" 2>&1 | tee "$log_file" >&2 || opencode_exit_code=$?
+    echo "" >&2
     
     # Check for errors in OpenCode execution
     if [ $opencode_exit_code -ne 0 ]; then
@@ -494,12 +457,6 @@ run_opencode() {
     
     if [ $new_commits -gt 0 ]; then
         log SUCCESS "OpenCode created $new_commits commit(s)" >&2
-        
-        # Show recent commits
-        if [ "$VERBOSE" = true ]; then
-            log INFO "Recent commits:" >&2
-            git log --oneline -n $new_commits >&2
-        fi
     elif [ "$phase" = "IMPLEMENTATION" ]; then
         log WARNING "No commits created during implementation iteration (OpenCode may not be following TDD properly)" >&2
     fi
@@ -572,17 +529,11 @@ auto_commit_changes() {
     
     # Check if AUTO_COMMIT is enabled
     if [ "$AUTO_COMMIT" != "true" ]; then
-        if [ "$VERBOSE" = true ]; then
-            log INFO "Auto-commit disabled (set AUTO_COMMIT=true in .sheenconfig)" >&2
-        fi
         return 0
     fi
     
     # Check if there are changes to commit
     if [ -z "$(git status --porcelain)" ]; then
-        if [ "$VERBOSE" = true ]; then
-            log INFO "No changes to commit" >&2
-        fi
         return 0
     fi
     
@@ -603,7 +554,7 @@ auto_commit_changes() {
 }
 
 main_loop() {
-    CURRENT_PHASE="DISCOVERY"
+    CURRENT_PHASE="IMPLEMENTATION"  # Default phase when using task-based approach
     
     while [ $ITERATION -lt $MAX_ITERATIONS ]; do
         ITERATION=$((ITERATION + 1))
@@ -611,101 +562,43 @@ main_loop() {
         
         echo ""
         log INFO "═══════════════════════════════════════════════════════════"
-        log INFO "Iteration #$ITERATION - Phase: $CURRENT_PHASE ($PHASE_ITERATION_COUNT in phase)"
+        log INFO "Iteration #$ITERATION"
         log INFO "═══════════════════════════════════════════════════════════"
         echo ""
-        
-        # Check phase timeout
-        check_phase_timeout "$CURRENT_PHASE" "$PHASE_ITERATION_COUNT" || {
-            log WARNING "Forcing phase transition due to timeout"
-            # Force phase transition logic here
-        }
         
         # Track progress metrics
         track_progress "$CURRENT_PHASE"
         
         # Run OpenCode
-        local next_phase=$(run_opencode "$ITERATION" "$CURRENT_PHASE")
+        local completion_status=$(run_opencode "$ITERATION" "$CURRENT_PHASE")
         
         # Log what was detected
-        log INFO "Phase detection result: $next_phase (was in $CURRENT_PHASE)"
+        log INFO "Completion status: $completion_status"
         
         # Check what to do next
-        case $next_phase in
-            PLANNING)
-                log SUCCESS "Discovery phase complete. Moving to Planning."
-                
-                # Commit discovery work
-                auto_commit_changes "Discovery" "docs: complete discovery phase"
-                
-                CURRENT_PHASE="PLANNING"
-                PHASE_ITERATION_COUNT=0  # Reset phase counter
-                log INFO "Phase is now: $CURRENT_PHASE"
-                ;;
-            IMPLEMENTATION)
-                log SUCCESS "Planning phase complete. Moving to Implementation."
-                
-                # Commit planning work
-                auto_commit_changes "Planning" "docs: complete planning phase"
-                
-                CURRENT_PHASE="IMPLEMENTATION"
-                PHASE_ITERATION_COUNT=0  # Reset phase counter
-                log INFO "Phase is now: $CURRENT_PHASE"
-                ;;
-            VALIDATION)
-                log SUCCESS "Implementation phase complete. Running tests..."
-                
-                # Commit implementation work before running tests
-                auto_commit_changes "Implementation" "feat: complete implementation phase"
-                
-                # Run tests with retry logic
-                if run_tests_with_retry; then
-                    log SUCCESS "All tests passed. Moving to Validation."
-                    CURRENT_PHASE="VALIDATION"
-                    PHASE_ITERATION_COUNT=0  # Reset phase counter
-                    log INFO "Phase is now: $CURRENT_PHASE"
-                else
-                    log WARNING "Tests failed. Asking OpenCode to fix issues..."
-                    
-                    if [ $TEST_FAILURE_COUNT -ge $MAX_TEST_RETRIES ]; then
-                        log ERROR "Too many test failures. Manual intervention needed."
-                        echo ""
-                        read -p "Do you want to continue trying to fix? (y/n) " -n 1 -r
-                        echo ""
-                        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                            log INFO "Stopping for manual review."
-                            exit 1
-                        fi
-                        TEST_FAILURE_COUNT=0  # Reset and continue
-                    fi
-                    
-                    # Stay in implementation phase to fix issues
-                    CURRENT_PHASE="IMPLEMENTATION"
-                    log INFO "Phase remains: $CURRENT_PHASE (fixing test failures)"
-                fi
-                ;;
+        case $completion_status in
             COMPLETE)
-                log SUCCESS "Validation complete!"
+                log SUCCESS "All tasks complete!"
                 
-                # Commit validation work
-                auto_commit_changes "Validation" "docs: complete validation phase"
+                # Commit any remaining work
+                auto_commit_changes "Final" "chore: complete all planned tasks"
                 
                 log INFO "Checking git status..."
                 check_git_status
                 
                 log SUCCESS "════════════════════════════════════════════════════"
-                log SUCCESS "DEVELOPMENT CYCLE COMPLETE"
+                log SUCCESS "ALL TASKS COMPLETE"
                 log SUCCESS "Total iterations: $ITERATION"
                 log SUCCESS "════════════════════════════════════════════════════"
                 
-                # Ask if we should continue with next cycle
+                # Ask if we should continue with more work
                 echo ""
-                read -p "Start another development cycle? (y/n) " -n 1 -r
+                read -p "Add more tasks to .sheen/plan.md and continue? (y/n) " -n 1 -r
                 echo ""
                 
                 if [[ $REPLY =~ ^[Yy]$ ]]; then
-                    log INFO "Starting new development cycle..."
-                    CURRENT_PHASE="DISCOVERY"
+                    log INFO "Waiting for you to add tasks to .sheen/plan.md..."
+                    read -p "Press Enter when ready to continue..."
                     PHASE_ITERATION_COUNT=0
                 else
                     log INFO "Sheen stopping. Great work!"
@@ -713,13 +606,13 @@ main_loop() {
                 fi
                 ;;
             CONTINUE)
-                log INFO "Continuing in $CURRENT_PHASE phase..."
+                log INFO "Continuing work on pending tasks..."
                 
-                # During implementation, commit progress periodically
-                if [ "$CURRENT_PHASE" = "IMPLEMENTATION" ] && [ "$AUTO_COMMIT" = "true" ]; then
+                # Commit progress periodically if auto-commit is enabled
+                if [ "$AUTO_COMMIT" = "true" ]; then
                     if [ -n "$(git status --porcelain)" ]; then
-                        log INFO "Committing implementation progress..."
-                        auto_commit_changes "Implementation" "wip: iteration #$ITERATION - ongoing implementation"
+                        log INFO "Committing work in progress..."
+                        auto_commit_changes "Progress" "wip: iteration #$ITERATION - ongoing work"
                     fi
                 fi
                 ;;
@@ -776,11 +669,7 @@ log INFO "  Error recovery: Max errors=$MAX_OPENCODE_ERRORS, Max test retries=$M
 log INFO "  Progress tracking: Enabled (checking every iteration)"
 echo ""
 
-if [ "$VERBOSE" = true ]; then
-    log INFO "🔍 VERBOSE MODE ENABLED - You'll see OpenCode operations in real-time"
-else
-    log INFO "Running in normal mode (use -v or --verbose for live output)"
-fi
+log INFO "OpenCode output will be shown in real-time"
 log INFO "Press Ctrl+C to stop Sheen at any time"
 echo ""
 

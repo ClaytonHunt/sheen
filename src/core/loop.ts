@@ -57,7 +57,7 @@ export class ExecutionLoop {
             startedAt: new Date()
           });
           state.currentTask = task;
-          logger.info(`Starting task: ${task.description}`);
+          logger.phase(`Starting task: ${task.description}`);
         }
         
         // Build agent context
@@ -74,7 +74,7 @@ export class ExecutionLoop {
         
         // Process result
         if (result.success) {
-          logger.info('Task execution successful');
+          logger.success('Task execution successful');
           
           // Update context with tool results
           if (result.toolCalls && result.toolCalls.length > 0) {
@@ -152,7 +152,7 @@ export class ExecutionLoop {
       }
     }
     
-    logger.info('Execution loop finished');
+    logger.success('Execution loop finished');
     logger.info(`Completed ${state.iteration} iteration(s)`);
   }
 
@@ -204,7 +204,7 @@ export class ExecutionLoop {
             startedAt: new Date()
           });
           state.currentTask = task;
-          logger.info(`Starting task: ${task.description}`);
+          logger.phase(`Starting task: ${task.description}`);
         }
         
         // Build conversation context
@@ -335,7 +335,7 @@ export class ExecutionLoop {
       }
     }
     
-    logger.info('Execution loop finished');
+    logger.success('Execution loop finished');
     logger.info(`Completed ${state.iteration} iteration(s)`);
   }
 

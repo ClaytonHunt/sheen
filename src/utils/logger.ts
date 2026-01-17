@@ -2,6 +2,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { LogEntry } from './types';
+import chalk from 'chalk';
 
 export class Logger {
   constructor(
@@ -11,25 +12,43 @@ export class Logger {
 
   debug(message: string, meta?: any): void {
     if (this.shouldLog('debug')) {
-      console.log(`[DEBUG] ${message}`, meta || '');
+      console.log(chalk.gray(`[DEBUG] ${message}`), meta || '');
     }
   }
 
   info(message: string, meta?: any): void {
     if (this.shouldLog('info')) {
-      console.log(`[INFO] ${message}`, meta || '');
+      console.log(chalk.cyan(`[INFO]`) + ` ${message}`, meta || '');
     }
   }
 
   warn(message: string, meta?: any): void {
     if (this.shouldLog('warn')) {
-      console.warn(`[WARN] ${message}`, meta || '');
+      console.warn(chalk.yellow(`[WARNING]`) + ` ${message}`, meta || '');
     }
   }
 
   error(message: string, error?: Error): void {
     if (this.shouldLog('error')) {
-      console.error(`[ERROR] ${message}`, error || '');
+      console.error(chalk.red(`[ERROR]`) + ` ${message}`, error || '');
+    }
+  }
+  
+  success(message: string, meta?: any): void {
+    if (this.shouldLog('info')) {
+      console.log(chalk.green(`[SUCCESS]`) + ` ${message}`, meta || '');
+    }
+  }
+  
+  phase(message: string, meta?: any): void {
+    if (this.shouldLog('info')) {
+      console.log(chalk.magenta(`[PHASE]`) + ` ${message}`, meta || '');
+    }
+  }
+  
+  metric(message: string, meta?: any): void {
+    if (this.shouldLog('info')) {
+      console.log(chalk.blue(`[METRIC]`) + ` ${message}`, meta || '');
     }
   }
 

@@ -35,7 +35,8 @@ export class Agent {
 
   constructor(
     private config: AgentConfig,
-    private projectContext: ProjectContext
+    private projectContext: ProjectContext,
+    aiAgent: AIAgent
   ) {
     // Initialize tool registry (used for OpenCode path)
     this.toolRegistry = new ToolRegistry();
@@ -43,40 +44,12 @@ export class Agent {
     this.toolRegistry.registerAll(gitTools);
     this.toolRegistry.registerAll(shellTools);
     
-    // Initialize AI agent based on configuration
-    const useAISDK = config.ai?.engine === 'direct-ai-sdk';
+    // Use provided AI agent
+    this.aiAgent = aiAgent;
     
-    if (useAISDK && config.ai) {
-      logger.info(`Initializing DirectAIAgent with provider: ${config.ai.provider}`);
-      
-      // Create provider
-      const provider = createProvider(config.ai);
-      
-      // Create DirectAIAgent
-      this.aiAgent = new DirectAIAgent(provider, config.ai, config.ai.provider);
-      
-      // Register AI SDK tools - convert allTools object to ToolDefinition array
-      const toolDefinitions = Object.entries(allTools).map(([name, tool]) => ({
-        name,
-        description: '', // Tools already have descriptions in their definitions
-        tool
-      }));
-      this.aiAgent.registerTools(toolDefinitions);
-      
-      logger.info('DirectAIAgent initialized successfully');
-    } else {
-      logger.info('Initializing OpenCodeAdapter for backward compatibility');
-      
-      // Create OpenCode client
-      this.opencode = new OpenCodeClient(config.opencode);
-      
-      // Wrap in adapter for AIAgent interface
-      this.aiAgent = new OpenCodeAdapter(this.opencode);
-      
-      // Create tool call adapter (for legacy path)
+    // Create tool call adapter if using OpenCode
+    if (config.ai?.engine !== 'direct-ai-sdk') {
       this.adapter = new ToolCallAdapter(this.toolRegistry, projectContext);
-      
-      logger.info('OpenCodeAdapter initialized successfully');
     }
     
     this.executionLoop = new ExecutionLoop(config);
@@ -103,6 +76,50 @@ export class Agent {
       userMessages: [],
       projectContext
     };
+  }
+
+  /**
+   * Create Agent instance (async factory method)
+   */
+  static async create(
+    config: AgentConfig,
+    projectContext: ProjectContext
+  ): Promise<Agent> {
+    // Initialize AI agent based on configuration
+    const useAISDK = config.ai?.engine === 'direct-ai-sdk';
+    let aiAgent: AIAgent;
+    
+    if (useAISDK && config.ai) {
+      logger.info(`Initializing DirectAIAgent with provider: ${config.ai.provider}`);
+      
+      // Create provider (now async)
+      const provider = await createProvider(config.ai);
+      
+      // Create DirectAIAgent
+      aiAgent = new DirectAIAgent(provider, config.ai, config.ai.provider);
+      
+      // Register AI SDK tools - convert allTools object to ToolDefinition array
+      const toolDefinitions = Object.entries(allTools).map(([name, tool]) => ({
+        name,
+        description: '', // Tools already have descriptions in their definitions
+        tool
+      }));
+      aiAgent.registerTools(toolDefinitions);
+      
+      logger.info('DirectAIAgent initialized successfully');
+    } else {
+      logger.info('Initializing OpenCodeAdapter for backward compatibility');
+      
+      // Create OpenCode client
+      const opencode = new OpenCodeClient(config.opencode);
+      
+      // Wrap in adapter for AIAgent interface
+      aiAgent = new OpenCodeAdapter(opencode);
+      
+      logger.info('OpenCodeAdapter initialized successfully');
+    }
+    
+    return new Agent(config, projectContext, aiAgent);
   }
 
   /**
@@ -251,6 +268,19 @@ export class Agent {
   async stop(): Promise<void> {
     this.running = false;
     logger.info('Agent stopped');
+  }
+  
+  /**
+   * Cleanup resources (kill running processes)
+   */
+  cleanup(): void {
+    logger.info('Cleaning up agent resources...');
+    if (this.opencode) {
+      this.opencode.cleanup();
+    }
+    if (this.aiAgent && 'cleanup' in this.aiAgent) {
+      (this.aiAgent as any).cleanup();
+    }
   }
 
   /**
