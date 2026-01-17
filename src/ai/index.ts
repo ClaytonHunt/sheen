@@ -9,3 +9,4 @@
 
 export * from './agent-interface';
 export * from './opencode-adapter';
+export * from './conversation-manager';
