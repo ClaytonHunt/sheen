@@ -88,6 +88,8 @@ export class Agent {
     // Initialize AI agent based on configuration
     const useAISDK = config.ai?.engine === 'direct-ai-sdk';
     let aiAgent: AIAgent;
+    let opencode: OpenCodeClient | undefined;
+    let adapter: ToolCallAdapter | undefined;
     
     if (useAISDK && config.ai) {
       logger.info(`Initializing DirectAIAgent with provider: ${config.ai.provider}`);
@@ -111,15 +113,30 @@ export class Agent {
       logger.info('Initializing OpenCodeAdapter for backward compatibility');
       
       // Create OpenCode client
-      const opencode = new OpenCodeClient(config.opencode);
+      opencode = new OpenCodeClient(config.opencode);
       
       // Wrap in adapter for AIAgent interface
       aiAgent = new OpenCodeAdapter(opencode);
       
+      // Create tool call adapter for legacy execution path
+      const toolRegistry = new ToolRegistry();
+      toolRegistry.registerAll(fileTools);
+      toolRegistry.registerAll(gitTools);
+      toolRegistry.registerAll(shellTools);
+      adapter = new ToolCallAdapter(toolRegistry, projectContext);
+      
       logger.info('OpenCodeAdapter initialized successfully');
     }
     
-    return new Agent(config, projectContext, aiAgent);
+    const agent = new Agent(config, projectContext, aiAgent);
+    
+    // Set legacy fields if using OpenCode
+    if (opencode && adapter) {
+      (agent as any).opencode = opencode;
+      (agent as any).adapter = adapter;
+    }
+    
+    return agent;
   }
 
   /**

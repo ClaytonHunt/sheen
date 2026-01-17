@@ -6,6 +6,7 @@ import { GlobalConfig } from './config/global';
 import { Agent } from './core/agent';
 import { showVersion, showBanner, getVersion } from './io/banner';
 import { createLoginCommand, createLogoutCommand, createAuthCommand } from './auth/commands.js';
+import { createModelsCommand } from './auth/models-command.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -227,6 +228,7 @@ export async function runCLI() {
   program.addCommand(createLoginCommand());
   program.addCommand(createLogoutCommand());
   program.addCommand(createAuthCommand());
+  program.addCommand(createModelsCommand());
 
   await program.parseAsync(process.argv);
 }
