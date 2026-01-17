@@ -6,15 +6,158 @@ import { PromptBuilder } from '../io/prompt.js';
 import { OpenCodeClient } from '../opencode/client.js';
 import { ToolCallAdapter } from '../opencode/adapter.js';
 import { ToolRegistry } from '../tools/registry.js';
+import { AIAgent } from '../ai/agent-interface.js';
 
 /**
  * Execution loop for autonomous agent iterations
+ * Supports both OpenCode and DirectAIAgent engines
  */
 export class ExecutionLoop {
   constructor(private config: AgentConfig) {}
 
   /**
-   * Execute main autonomous loop
+   * Execute main autonomous loop with AIAgent (v0.2.0)
+   * 
+   * @param state - Current execution state
+   * @param agent - AI agent instance (OpenCodeAdapter or DirectAIAgent)
+   * @param planner - Task planner instance
+   * @param contextManager - Context manager instance
+   */
+  async executeWithAIAgent(
+    state: ExecutionState,
+    agent: AIAgent,
+    planner: TaskPlanner,
+    contextManager: ContextManager
+  ): Promise<void> {
+    logger.info('Starting execution loop with AIAgent');
+    
+    while (this.shouldContinue(state)) {
+      try {
+        // Save previous metrics for progress detection
+        const prevMetrics = { ...state.metrics };
+        
+        // Increment iteration
+        this.incrementIteration(state);
+        
+        // Get next task (or current task if in progress)
+        let task = state.currentTask;
+        if (!task) {
+          const nextTask = await planner.getNextTask(state);
+          if (!nextTask) {
+            logger.info('No more tasks to execute');
+            state.phase = 'complete';
+            break;
+          }
+          
+          task = nextTask;
+          
+          // Mark task as in progress
+          await planner.updateTask(task.id, { 
+            status: 'in_progress',
+            startedAt: new Date()
+          });
+          state.currentTask = task;
+          logger.info(`Starting task: ${task.description}`);
+        }
+        
+        // Build agent context
+        const agentContext = {
+          projectContext: state.projectContext,
+          executionState: state,
+          configuration: this.config,
+          conversationHistory: contextManager.getHistory()
+        };
+        
+        // Execute with agent
+        logger.debug(`Executing with AIAgent (iteration ${state.iteration})`);
+        const result = await agent.execute(task.description, agentContext);
+        
+        // Process result
+        if (result.success) {
+          logger.info('Task execution successful');
+          
+          // Update context with tool results
+          if (result.toolCalls && result.toolCalls.length > 0) {
+            logger.info(`Executed ${result.toolCalls.length} tool call(s)`);
+            
+            // Note: File change tracking will be handled by the tools themselves
+            // We could track this through metadata if needed in the future
+          }
+          
+          // Check if task should be marked complete
+          // For now, mark complete if the response indicates completion
+          if (result.response && 
+              (result.response.includes('IMPLEMENTATION COMPLETE') || 
+               result.response.includes('Task complete'))) {
+            if (state.currentTask) {
+              await planner.updateTask(state.currentTask.id, { 
+                status: 'completed',
+                completedAt: new Date()
+              });
+              state.currentTask = undefined;
+            }
+            
+            // Check if there are more tasks
+            const nextTask = await planner.getNextTask(state);
+            if (!nextTask) {
+              state.phase = 'complete';
+              break;
+            }
+          }
+        } else {
+          logger.warn('Task execution failed');
+          
+          // Mark task as failed
+          if (state.currentTask) {
+            await planner.updateTask(state.currentTask.id, { 
+              status: 'failed'
+            });
+            state.currentTask = undefined;
+          }
+        }
+        
+        // Update progress tracking
+        this.updateProgress(state, prevMetrics);
+        
+        // Sleep between iterations
+        await this.sleep();
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error(`Iteration ${state.iteration} failed: ${errorMessage}`);
+        
+        // Record error
+        state.errors.push({
+          iteration: state.iteration,
+          phase: state.phase,
+          error: error as Error,
+          recovered: false,
+          timestamp: new Date()
+        });
+        
+        // Mark current task as failed if we have one
+        if (state.currentTask) {
+          await planner.updateTask(state.currentTask.id, { 
+            status: 'failed'
+          });
+          state.currentTask = undefined;
+        }
+        
+        // Check if we should continue or stop
+        const recentErrors = state.errors.filter(e => !e.recovered).length;
+        if (recentErrors >= this.config.errorRecovery.maxOpenCodeErrors) {
+          logger.error('Too many errors, stopping execution');
+          break;
+        }
+      }
+    }
+    
+    logger.info('Execution loop finished');
+    logger.info(`Completed ${state.iteration} iteration(s)`);
+  }
+
+  /**
+   * Execute main autonomous loop (Legacy OpenCode path for backward compatibility)
    * 
    * @param state - Current execution state
    * @param planner - Task planner instance

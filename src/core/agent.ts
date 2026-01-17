@@ -10,15 +10,21 @@ import { ExecutionLoop } from './loop.js';
 import { TaskPlanner } from './planner.js';
 import { ContextManager } from './context.js';
 import { PromptBuilder } from '../io/prompt.js';
+import { AIAgent } from '../ai/agent-interface.js';
+import { OpenCodeAdapter } from '../ai/opencode-adapter.js';
+import { DirectAIAgent } from '../ai/direct-ai-agent.js';
+import { createProvider } from '../ai/provider-factory.js';
+import { allTools } from '../tools/ai-sdk/index.js';
 
 /**
  * Main agent orchestrator
  * 
- * Coordinates OpenCode execution, tool calls, and task management.
+ * Coordinates AI agent execution (OpenCode or DirectAIAgent), tool calls, and task management.
  */
 export class Agent {
-  private opencode: OpenCodeClient;
-  private adapter: ToolCallAdapter;
+  private aiAgent?: AIAgent;
+  private opencode?: OpenCodeClient;
+  private adapter?: ToolCallAdapter;
   private toolRegistry: ToolRegistry;
   private executionLoop: ExecutionLoop;
   private planner: TaskPlanner;
@@ -31,14 +37,48 @@ export class Agent {
     private config: AgentConfig,
     private projectContext: ProjectContext
   ) {
-    // Initialize components
+    // Initialize tool registry (used for OpenCode path)
     this.toolRegistry = new ToolRegistry();
     this.toolRegistry.registerAll(fileTools);
     this.toolRegistry.registerAll(gitTools);
     this.toolRegistry.registerAll(shellTools);
     
-    this.opencode = new OpenCodeClient(config.opencode);
-    this.adapter = new ToolCallAdapter(this.toolRegistry, projectContext);
+    // Initialize AI agent based on configuration
+    const useAISDK = config.ai?.engine === 'direct-ai-sdk';
+    
+    if (useAISDK && config.ai) {
+      logger.info(`Initializing DirectAIAgent with provider: ${config.ai.provider}`);
+      
+      // Create provider
+      const provider = createProvider(config.ai);
+      
+      // Create DirectAIAgent
+      this.aiAgent = new DirectAIAgent(provider, config.ai, config.ai.provider);
+      
+      // Register AI SDK tools - convert allTools object to ToolDefinition array
+      const toolDefinitions = Object.entries(allTools).map(([name, tool]) => ({
+        name,
+        description: '', // Tools already have descriptions in their definitions
+        tool
+      }));
+      this.aiAgent.registerTools(toolDefinitions);
+      
+      logger.info('DirectAIAgent initialized successfully');
+    } else {
+      logger.info('Initializing OpenCodeAdapter for backward compatibility');
+      
+      // Create OpenCode client
+      this.opencode = new OpenCodeClient(config.opencode);
+      
+      // Wrap in adapter for AIAgent interface
+      this.aiAgent = new OpenCodeAdapter(this.opencode);
+      
+      // Create tool call adapter (for legacy path)
+      this.adapter = new ToolCallAdapter(this.toolRegistry, projectContext);
+      
+      logger.info('OpenCodeAdapter initialized successfully');
+    }
+    
     this.executionLoop = new ExecutionLoop(config);
     this.planner = new TaskPlanner(projectContext);
     this.contextManager = new ContextManager(projectContext);
@@ -114,16 +154,31 @@ export class Agent {
         }
       }
       
-      // Execute main loop
-      await this.executionLoop.execute(
-        this.state,
-        this.planner,
-        this.contextManager,
-        this.promptBuilder,
-        this.opencode,
-        this.adapter,
-        this.toolRegistry
-      );
+      // Execute main loop with appropriate engine
+      const useAISDK = this.config.ai?.engine === 'direct-ai-sdk';
+      
+      if (useAISDK && this.aiAgent) {
+        logger.info('Executing with DirectAIAgent');
+        await this.executionLoop.executeWithAIAgent(
+          this.state,
+          this.aiAgent,
+          this.planner,
+          this.contextManager
+        );
+      } else if (this.opencode && this.adapter) {
+        logger.info('Executing with OpenCode (legacy)');
+        await this.executionLoop.execute(
+          this.state,
+          this.planner,
+          this.contextManager,
+          this.promptBuilder,
+          this.opencode,
+          this.adapter,
+          this.toolRegistry
+        );
+      } else {
+        throw new Error('No execution engine initialized');
+      }
       
       logger.info('Agent execution complete');
       return this.state;
