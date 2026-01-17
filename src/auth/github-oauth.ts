@@ -17,9 +17,9 @@ import { logger } from '../utils/logger.js';
 
 /**
  * GitHub OAuth App credentials
- * TODO: Register a Sheen OAuth app with GitHub and replace these
+ * Official Sheen OAuth App registered at https://github.com/ClaytonHunt/sheen
  */
-const GITHUB_CLIENT_ID = 'Iv1.b507a08c87ecfe98'; // Placeholder - needs to be replaced
+const GITHUB_CLIENT_ID = 'Ov23liYMs1y0DwIIaJEH';
 const GITHUB_DEVICE_CODE_URL = 'https://github.com/login/device/code';
 const GITHUB_ACCESS_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 
@@ -65,7 +65,7 @@ export async function initiateDeviceFlow(): Promise<DeviceCodeResponse> {
     },
     body: JSON.stringify({
       client_id: GITHUB_CLIENT_ID,
-      scope: 'read:user', // Minimal scope for now
+      scope: 'read:user', // Minimal scope - GitHub Models doesn't require special scopes
     }),
   });
 
@@ -185,54 +185,57 @@ export async function getGitHubCLIToken(): Promise<string | null> {
 }
 
 /**
- * Complete GitHub OAuth device flow
+ * Complete GitHub OAuth device flow with fallback to gh CLI
  * 
+ * @param forceOAuth - Force OAuth device flow instead of using gh CLI token
  * @returns Access token
  */
-export async function authenticateWithGitHub(): Promise<string> {
-  // First, try to use GitHub CLI token
+export async function authenticateWithGitHub(forceOAuth: boolean = false): Promise<string> {
   console.log('\n🔐 GitHub Authentication\n');
-  console.log('Checking for GitHub CLI (gh) authentication...\n');
   
-  const cliToken = await getGitHubCLIToken();
-  
-  if (cliToken) {
-    console.log('✓ Found GitHub CLI token!\n');
-    console.log('Using existing gh authentication.\n');
-    return cliToken;
+  // If not forcing OAuth, try gh CLI first
+  if (!forceOAuth) {
+    console.log('Checking for GitHub CLI (gh) authentication...\n');
+    
+    const cliToken = await getGitHubCLIToken();
+    
+    if (cliToken) {
+      console.log('✓ Found GitHub CLI token!\n');
+      console.log('Using existing gh authentication.\n');
+      return cliToken;
+    }
+    
+    console.log('GitHub CLI not authenticated.\n');
   }
 
-  console.log('GitHub CLI not authenticated.\n');
-  console.log('Please authenticate with GitHub CLI first:');
-  console.log('  gh auth login\n');
-  console.log('Or set GITHUB_TOKEN environment variable.\n');
+  // Use OAuth device flow
+  console.log('Starting OAuth device flow...\n');
   
-  throw new Error('GitHub authentication required. Run "gh auth login" first.');
+  try {
+    // Step 1: Initiate device flow
+    const deviceCode = await initiateDeviceFlow();
 
-  // NOTE: OAuth device flow requires a registered OAuth app
-  // Keeping the code below for future use when we register an OAuth app
-  
-  // // Step 1: Initiate device flow
-  // const deviceCode = await initiateDeviceFlow();
+    // Step 2: Show user code and verification URL
+    console.log('━'.repeat(50));
+    console.log(`\nPlease visit: ${deviceCode.verification_uri}`);
+    console.log(`\nEnter code: ${deviceCode.user_code}\n`);
+    console.log('━'.repeat(50));
+    console.log('\nWaiting for authorization...\n');
 
-  // // Step 2: Show user code and verification URL
-  // console.log('\n🔐 GitHub Authentication');
-  // console.log('━'.repeat(50));
-  // console.log(`\nPlease visit: ${deviceCode.verification_uri}`);
-  // console.log(`\nEnter code: ${deviceCode.user_code}\n`);
-  // console.log('Waiting for authorization...\n');
-
-  // // Step 3: Poll for token
-  // try {
-  //   const accessToken = await pollForToken(
-  //     deviceCode.device_code,
-  //     deviceCode.interval,
-  //     deviceCode.expires_in
-  //   );
-  //   
-  //   return accessToken;
-  // } catch (error: any) {
-  //   logger.error('GitHub authentication failed', error);
-  //   throw error;
-  // }
+    // Step 3: Poll for token
+    const accessToken = await pollForToken(
+      deviceCode.device_code,
+      deviceCode.interval,
+      deviceCode.expires_in
+    );
+    
+    console.log('✓ Successfully authenticated!\n');
+    return accessToken;
+  } catch (error: any) {
+    logger.error('GitHub authentication failed', error);
+    console.log('\nAlternatively, you can:');
+    console.log('  1. Run: gh auth login');
+    console.log('  2. Set GITHUB_TOKEN environment variable\n');
+    throw error;
+  }
 }
