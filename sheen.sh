@@ -234,11 +234,13 @@ track_progress() {
     local phase=$1
     
     # Get current metrics (strip whitespace and ensure integer)
-    local current_test_count=$(dotnet test --no-build --list-tests 2>/dev/null | grep -c "    " 2>/dev/null || echo "0")
+    # Count test files for TypeScript/Node.js projects
+    local current_test_count=$(find tests -type f -name "*.test.ts" 2>/dev/null | wc -l 2>/dev/null || echo "0")
     current_test_count=$(echo "$current_test_count" | tr -d '[:space:]' | sed 's/^$/0/')
     current_test_count=$((10#${current_test_count:-0}))  # Force base-10, strip leading zeros
     
-    local current_file_count=$(find src -type f -name "*.cs" 2>/dev/null | wc -l 2>/dev/null || echo "0")
+    # Count TypeScript source files
+    local current_file_count=$(find src -type f -name "*.ts" 2>/dev/null | wc -l 2>/dev/null || echo "0")
     current_file_count=$(echo "$current_file_count" | tr -d '[:space:]' | sed 's/^$/0/')
     current_file_count=$((10#${current_file_count:-0}))  # Force base-10, strip leading zeros
     
@@ -516,10 +518,11 @@ run_tests_with_retry() {
     local attempt=1
     local max_attempts=$MAX_TEST_RETRIES
     
-    log INFO "Running backend tests (attempt $attempt/$max_attempts)..."
+    log INFO "Running tests (attempt $attempt/$max_attempts)..."
     
     while [ $attempt -le $max_attempts ]; do
-        if dotnet test --no-build --verbosity quiet > "$LOG_DIR/test-results.log" 2>&1; then
+        if npm test > "$LOG_DIR/test-results.log" 2>&1; then
+            # Extract test count from Jest output (e.g., "Tests: 65 passed, 65 total")
             local test_count=$(grep -oP '\d+(?= passed)' "$LOG_DIR/test-results.log" | head -1)
             log SUCCESS "Tests passed ($test_count tests)"
             TEST_FAILURE_COUNT=0  # Reset failure count
@@ -539,7 +542,7 @@ run_tests_with_retry() {
                 # Show test failures
                 echo ""
                 log ERROR "Test failures:"
-                grep -A 5 "Failed!" "$LOG_DIR/test-results.log" || cat "$LOG_DIR/test-results.log"
+                grep -A 5 "FAIL" "$LOG_DIR/test-results.log" || cat "$LOG_DIR/test-results.log"
                 echo ""
                 
                 return 1
