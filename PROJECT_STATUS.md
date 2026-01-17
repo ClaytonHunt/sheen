@@ -2,7 +2,7 @@
 
 **Last Updated**: January 16, 2026  
 **Phase**: Implementation - Direct AI SDK Integration (In Progress)  
-**Status**: 🚧 **PHASE 1 COMPLETE - 25% DONE** (4/20 major tasks)
+**Status**: 🚧 **PHASE 2 & 3.1 COMPLETE - 40% DONE** (7/20 major tasks)
 
 ---
 
@@ -10,8 +10,8 @@
 
 ### Progress Overview
 - **Phase 1 (Foundation)**: ✅ COMPLETE (4/4 tasks)
-- **Phase 2 (Core AI SDK)**: ⏳ IN PROGRESS (1/3 tasks)
-- **Phase 3 (Tool Migration)**: ⏳ PENDING (0/3 tasks)
+- **Phase 2 (Core AI SDK)**: ✅ COMPLETE (3/3 tasks)
+- **Phase 3 (Tool Migration)**: ⏳ IN PROGRESS (1/3 tasks)
 - **Phase 4 (Safety)**: ⏳ PENDING (0/3 tasks)
 - **Phase 5 (Integration)**: ⏳ PENDING (0/4 tasks)
 - **Phase 6 (Optimization)**: ⏳ PENDING (0/3 tasks)
@@ -44,6 +44,30 @@
    - Context window pruning
    - System prompt preservation
    - Commit: `7a6c996` - feat: implement ConversationManager
+
+#### Phase 2: Core AI SDK Integration (100% Complete)
+5. ✅ **Task 2.2**: Implemented DirectAIAgent
+   - Native AI SDK implementation with generateText() and streamText()
+   - Tool registration and execution
+   - Conversation history management
+   - Error handling and retries
+   - Commit: `41870cf` - feat: implement DirectAIAgent and ProviderFactory
+
+6. ✅ **Task 2.3**: Implemented ProviderFactory
+   - Support for Anthropic, OpenAI, and Google providers
+   - API key loading from config or environment
+   - Model selection logic
+   - Provider validation
+   - Commit: `41870cf` - feat: implement DirectAIAgent and ProviderFactory
+
+#### Phase 3: Tool System Migration (33% Complete)
+7. ✅ **Task 3.1**: Ported critical tools to AI SDK format
+   - bash-tool.ts - Shell command execution ✅
+   - read-tool.ts - File reading with line numbers ✅
+   - write-tool.ts - File creation/overwrite ✅
+   - edit-tool.ts - Exact string replacement ✅
+   - types.ts - Tool context definitions ✅
+   - Commit: `8ca73c7` - feat: port critical tools to AI SDK format
 
 ### In Progress 🚧
 
