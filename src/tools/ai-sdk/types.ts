@@ -5,6 +5,8 @@
  */
 
 import type { ProjectContext, AgentConfig } from '../../utils/types';
+import type { PermissionManager } from '../../permissions/permission-manager';
+import type { GitignoreFilter } from '../../permissions/gitignore-filter';
 
 /**
  * Context passed to tool execution
@@ -22,6 +24,9 @@ export interface ToolContext {
   /** Patterns to exclude from file operations */
   excludePatterns?: string[];
   
-  /** Permission manager (to be implemented in Phase 4) */
-  permissionManager?: any; // TODO: Replace with PermissionManager type
+  /** Permission manager for safety checks */
+  permissionManager?: PermissionManager;
+  
+  /** Gitignore filter for respecting .gitignore */
+  gitignoreFilter?: GitignoreFilter;
 }
