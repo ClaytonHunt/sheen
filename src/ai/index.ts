@@ -9,4 +9,6 @@
 
 export * from './agent-interface';
 export * from './opencode-adapter';
+export * from './direct-ai-agent';
 export * from './conversation-manager';
+export * from './provider-factory';
