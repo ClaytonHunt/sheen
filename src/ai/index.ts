@@ -8,3 +8,4 @@
  */
 
 export * from './agent-interface';
+export * from './opencode-adapter';
