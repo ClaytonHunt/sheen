@@ -1,10 +1,89 @@
-# Sheen v0.1.0 - Project Status
+# Sheen v0.2.0 - Project Status
 
 **Last Updated**: January 16, 2026  
-**Phase**: Implementation - TDD Cycle Complete  
-**Status**: ✅ **IMPLEMENTATION COMPLETE - All tests passing (65 tests)**
+**Phase**: Implementation - Direct AI SDK Integration (In Progress)  
+**Status**: 🚧 **PHASE 1 COMPLETE - 25% DONE** (4/20 major tasks)
 
 ---
+
+## Current Implementation: v0.2.0 Direct AI SDK Integration
+
+### Progress Overview
+- **Phase 1 (Foundation)**: ✅ COMPLETE (4/4 tasks)
+- **Phase 2 (Core AI SDK)**: ⏳ IN PROGRESS (1/3 tasks)
+- **Phase 3 (Tool Migration)**: ⏳ PENDING (0/3 tasks)
+- **Phase 4 (Safety)**: ⏳ PENDING (0/3 tasks)
+- **Phase 5 (Integration)**: ⏳ PENDING (0/4 tasks)
+- **Phase 6 (Optimization)**: ⏳ PENDING (0/3 tasks)
+- **Phase 7 (Documentation)**: ⏳ PENDING (0/1 tasks)
+
+### Completed Tasks ✅
+
+#### Phase 1: Foundation & Interface (100% Complete)
+1. ✅ **Task 1.1**: Added AI SDK configuration schema
+   - Extended AgentConfig with AIConfig interface
+   - Added engine selection: 'opencode' | 'direct-ai-sdk'
+   - Added provider settings (anthropic, openai, google)
+   - Commit: `9a85af1` - feat: add AI SDK configuration schema
+
+2. ✅ **Task 1.2**: Created AIAgent interface
+   - Provider-agnostic abstraction for AI integration
+   - Supports both execute() and stream() methods
+   - Tool registration and conversation management
+   - Commit: `22d38ee` - feat: add AIAgent interface
+
+3. ✅ **Task 1.3**: Implemented OpenCodeAdapter
+   - Wraps existing OpenCodeClient
+   - Maintains backward compatibility
+   - Implements AIAgent interface
+   - Commit: `a00c1eb` - feat: implement OpenCodeAdapter
+
+4. ✅ **Task 2.1**: Implemented ConversationManager
+   - Message history management
+   - Token counting and estimation
+   - Context window pruning
+   - System prompt preservation
+   - Commit: `7a6c996` - feat: implement ConversationManager
+
+### In Progress 🚧
+
+#### Phase 2: Core AI SDK Integration
+- ⏳ **Task 2.2**: Implement DirectAIAgent (next)
+- ⏳ **Task 2.3**: Implement ProviderFactory (next)
+
+### Remaining Tasks ⏳
+
+#### Phase 3: Tool System Migration
+- Port critical tools to AI SDK format (bash, read, write, edit)
+- Port remaining tools (grep, glob, git, todo)
+- Create tool registry for AI SDK
+
+#### Phase 4: Safety & Permissions
+- Implement PermissionManager
+- Implement GitignoreFilter
+- Integrate permissions into tools
+
+#### Phase 5: Integration & Testing
+- Update ExecutionLoop to support both engines
+- Update Agent orchestrator
+- Create golden tests for parity
+- Create end-to-end integration tests
+
+#### Phase 6: Performance & Optimization
+- Performance benchmarks
+- Context window optimization
+- Error handling improvements
+
+#### Phase 7: Documentation & Release
+- Update documentation
+- Migration guide
+- Prepare for release
+
+---
+
+## v0.1.0 Baseline (Completed)
+
+### Exit Criteria
 
 ## Exit Criteria
 
