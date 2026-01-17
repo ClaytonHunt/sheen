@@ -45,7 +45,7 @@ export class GlobalConfig {
       sleepBetweenIterations: 5,
       autoCommit: true,
       autoApprove: false,
-      logLevel: 'info',
+      logLevel: 'debug', // Default to verbose (debug) mode like sheen.sh
       opencode: {
         model: 'github-copilot/claude-sonnet-4.5',
         streamOutput: true,

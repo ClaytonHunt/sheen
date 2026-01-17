@@ -21,15 +21,37 @@ export class TaskPlanner {
 
   /**
    * Create initial plan from user prompt
-   * For MVP: Creates a single task from the prompt
+   * Creates discovery, planning, and implementation tasks
    */
   async createPlan(prompt: string): Promise<Task[]> {
     logger.debug('Creating plan from prompt', { prompt });
 
-    // Create single task for MVP
-    const task: Task = {
+    // Create discovery task
+    const discoveryTask: Task = {
       id: this.generateTaskId(),
-      description: prompt,
+      description: `Discovery: Analyze requirements and codebase for: ${prompt}`,
+      status: 'pending',
+      priority: 'high',
+      phase: 'discovery',
+      createdAt: new Date(),
+      attempts: 0
+    };
+
+    // Create planning task
+    const planningTask: Task = {
+      id: this.generateTaskId(),
+      description: `Planning: Create detailed implementation plan for: ${prompt}`,
+      status: 'pending',
+      priority: 'high',
+      phase: 'planning',
+      createdAt: new Date(),
+      attempts: 0
+    };
+
+    // Create implementation task
+    const implementationTask: Task = {
+      id: this.generateTaskId(),
+      description: `Implementation: ${prompt}`,
       status: 'pending',
       priority: 'high',
       phase: 'implementation',
@@ -37,12 +59,12 @@ export class TaskPlanner {
       attempts: 0
     };
 
-    this.tasks = [task];
+    this.tasks = [discoveryTask, planningTask, implementationTask];
     
     // Persist to plan.md
     await this.savePlan();
     
-    logger.info(`Plan created with ${this.tasks.length} task(s)`);
+    logger.info(`Plan created with ${this.tasks.length} task(s) (discovery, planning, implementation)`);
     return this.tasks;
   }
 
@@ -50,13 +72,13 @@ export class TaskPlanner {
    * Get next pending task to execute
    */
   async getNextTask(state: ExecutionState): Promise<Task | null> {
-    // Find first pending task
-    const task = this.tasks.find(t => t.status === 'pending');
+    // Find first pending or in_progress task (in case we're resuming)
+    const task = this.tasks.find(t => t.status === 'pending' || t.status === 'in_progress');
     
     if (task) {
-      logger.debug(`Next task: ${task.id} - ${task.description}`);
+      logger.debug(`Next task: ${task.id} - ${task.description} (${task.status})`);
     } else {
-      logger.debug('No pending tasks found');
+      logger.debug('No pending or in_progress tasks found');
     }
     
     return task || null;
@@ -109,6 +131,27 @@ export class TaskPlanner {
     
     logger.info(`Added task: ${newTask.id} - ${newTask.description}`);
     return newTask;
+  }
+
+  /**
+   * Prepend tasks to the beginning of the plan (before pending/in-progress tasks)
+   * This is used to add discovery/planning tasks from a new prompt to the top of existing work
+   */
+  async prependTasks(tasks: Omit<Task, 'id' | 'createdAt'>[]): Promise<Task[]> {
+    logger.debug(`Prepending ${tasks.length} task(s) to plan`);
+
+    const newTasks: Task[] = tasks.map(task => ({
+      ...task,
+      id: this.generateTaskId(),
+      createdAt: new Date()
+    }));
+
+    // Insert new tasks at the beginning
+    this.tasks = [...newTasks, ...this.tasks];
+    await this.savePlan();
+    
+    logger.info(`Prepended ${newTasks.length} task(s) to plan`);
+    return newTasks;
   }
 
   /**

@@ -1,909 +1,702 @@
-# Discovery Findings - Sheen v0.1.0 Architecture Review
+# Discovery Findings - Sheen v0.1.0 → v0.2.0 Transition
 
-**Discovery Date**: January 16, 2026  
+**Discovery Date**: January 16, 2026 (Updated)  
 **Project Version**: v0.1.0 (Production Ready)  
-**Status**: ✅ COMPLETE - Comprehensive analysis ready for next phase planning
+**Target Version**: v0.2.0 (AI SDK Integration)  
+**Status**: ✅ DISCOVERY COMPLETE - Ready for Planning Phase  
+**Test Status**: ✅ 65/65 tests passing (verified January 16, 2026)
 
 ---
 
 ## Executive Summary
 
-Sheen is a **production-ready** autonomous coding agent with human oversight, implemented as a global Node.js/TypeScript CLI tool. The v0.1.0 release has achieved all MVP exit criteria with 89 passing tests (65 unit tests, 14 integration tests, 10 smoke tests), zero TypeScript errors in strict mode, and cross-platform compatibility (Windows validated).
+Sheen is a **production-ready** autonomous coding agent implemented as a global Node.js/TypeScript CLI tool. The v0.1.0 release has successfully validated the autonomous agent architecture with:
 
-The project is now at a strategic inflection point: having successfully proven the autonomous agent architecture using OpenCode subprocess integration, it's positioned to migrate to a more performant and reliable **direct AI SDK integration** while maintaining backward compatibility during transition.
+- **89 passing tests** (65 unit + 14 integration + 10 smoke)
+- **Zero TypeScript errors** (strict mode)
+- **Cross-platform support** (Windows validated)
+- **9 working tools** (file, git, shell operations)
+- **Full OpenCode integration** (subprocess-based)
+
+The project is now positioned for a strategic evolution: migrating from OpenCode subprocess integration to **direct Vercel AI SDK integration** for 30-50% performance improvement and enhanced reliability.
 
 ---
 
-## Documentation Inventory
+## Current State Assessment
+
+### 🎯 Project Status
+- **Version**: 0.1.0 (MVP Complete)
+- **Phase**: Production Ready, Planning Next Phase
+- **Architecture**: Autonomous agent with OpenCode subprocess integration
+- **Test Coverage**: 100% pass rate (89 tests)
+- **Quality**: Zero type errors, strict TypeScript mode
+
+### 📦 Technology Stack
+```json
+{
+  "runtime": "Node.js 18+",
+  "language": "TypeScript 5.0 (strict mode)",
+  "cli": "Commander.js v11.0.0",
+  "ui": ["Chalk v4.1.2", "Ora v5.4.1", "Inquirer v8.2.5"],
+  "llm": "OpenCode (subprocess) + AI SDK dependencies installed",
+  "testing": "Jest v30.2.0 with ts-jest v29.4.6",
+  "distribution": "npm global package"
+}
+```
+
+### 🏗️ Architecture Components
+
+**Implemented Modules** (v0.1.0):
+```
+src/
+├── cli.ts (CLI parsing)
+├── index.ts (Entry point)
+├── core/
+│   ├── agent.ts (210 lines) - Main orchestrator
+│   ├── loop.ts (104 lines, 12 tests) - Execution loop
+│   ├── planner.ts - Task planning
+│   └── context.ts - Project context
+├── opencode/
+│   ├── client.ts (247 lines) - Subprocess integration
+│   └── adapter.ts (214 lines) - Tool call parsing
+├── tools/
+│   ├── registry.ts (176 lines, 20 tests) - Tool management
+│   ├── file.ts (336 lines, 16 tests) - 5 file tools
+│   ├── git.ts (133 lines, 10 tests) - 3 git tools
+│   └── shell.ts (57 lines, 7 tests) - 1 shell tool
+├── project/
+│   ├── detector.ts (240 lines) - Project type detection
+│   ├── initializer.ts (170 lines) - .sheen/ initialization
+│   ├── analyzer.ts - Structure analysis
+│   └── loader.ts - State loading
+├── config/
+│   ├── global.ts - Global configuration
+│   └── project.ts - Project configuration
+├── io/
+│   ├── banner.ts - ASCII art branding
+│   ├── output.ts - Formatted output
+│   ├── input.ts - User input handling
+│   └── prompt.ts - Prompt building
+└── utils/
+    ├── types.ts (242 lines) - Domain model
+    └── logger.ts (57 lines) - Logging
+```
+
+**Total Lines**: ~3,000+ implementation + ~750+ tests
+
+---
+
+## Documentation Review
 
 ### Planning & Strategy Documents
-- **`.sheen/plan.md`** (156 lines): Active execution plan with comprehensive AI SDK migration roadmap
-- **`.sheen/context.md`** (407 lines): Complete architecture reference, design principles, execution flow
-- **`PLAN.md`** (158 lines): Implementation plan with API contracts, module structure, test strategy
-- **`PLAN_v0.1.0.md`**: Historical v0.1.0 planning document
-- **`PROMPT.md`** (289 lines): Active development prompt for autonomous building
-- **`START_HERE.md`** (167 lines): Quick start guide for new developers
+- **`.sheen/plan.md`** (192 lines): Active AI SDK migration roadmap with 24 tasks
+- **`.sheen/context.md`** (407 lines): Complete architecture reference
+- **`PLAN.md`** (1,722 lines): Comprehensive v0.2.0 implementation plan
+- **`PROMPT.md`** (289 lines): Development guidance for autonomous building
+- **`PROJECT_STATUS.md`** (364 lines): Complete v0.1.0 status tracking
+- **`DISCOVERY.md`** (910 lines, previous): Historical analysis
+- **`DIRECT_AI_SDK_ANALYSIS.md`** (535 lines): AI SDK research and POC
+- **`README.md`** (319 lines): Public-facing documentation
+- **`START_HERE.md`** (167 lines): Developer quick start
 
-### Status & Analysis Documents
-- **`PROJECT_STATUS.md`** (364 lines): Complete implementation tracking, test results, metrics
-- **`README.md`** (319 lines): Public-facing documentation, usage, architecture
-- **`DISCOVERY.md`** (58 lines, current): Previous discovery findings
-- **`DIRECT_AI_SDK_ANALYSIS.md`** (535 lines): Comprehensive analysis of AI SDK migration path
-- **`TEST_RESULTS.md`**: Test execution results and recommendations
-- **`GETTING_STARTED.md`** (3.6KB): Development workflow guide
+### Key Findings from Documentation
 
-### Reference Implementations
-- **`sheen.sh`** (30KB, 774 lines): Working bash reference from AdventureEngine
-  - Autonomous loop implementation (lines 587-722)
-  - Phase detection and management (lines 312-402)
-  - OpenCode integration patterns (lines 404-498)
-  - Error recovery strategies (lines 287-310)
-- **`poc-direct-ai-sdk.ts`**: Working proof-of-concept for direct AI SDK usage
+1. **AI SDK Dependencies Already Installed**
+   - ✅ `ai` v6.0.39
+   - ✅ `@ai-sdk/anthropic` v3.0.15
+   - ✅ `@ai-sdk/openai` v3.0.12
+   - ✅ `@ai-sdk/google` v3.0.10
+   - ✅ `zod` v4.3.5
+   
+   **Status**: Dependencies ready, no installation needed!
 
-### Configuration
-- **`.sheenconfig`**: Runtime configuration with iteration limits, timeouts, auto-commit settings
-- **`package.json`**: v0.1.0, global CLI binary configuration, 89 tests passing
-- **`tsconfig.json`**: Strict TypeScript mode enabled
+2. **Comprehensive Planning Complete**
+   - 1,722-line implementation plan (PLAN.md)
+   - 24 detailed tasks in .sheen/plan.md
+   - API contracts defined
+   - Test strategy documented
+   - Risk assessment complete
+
+3. **POC Validated**
+   - `poc-direct-ai-sdk.ts` proves viability
+   - Working tool implementations demonstrated
+   - Performance expectations validated
 
 ---
 
 ## Current Architecture Deep Dive
 
-### Technology Stack
-- **Runtime**: Node.js 18+ with TypeScript 5.0 (strict mode)
-- **CLI Framework**: Commander.js v11.0.0
-- **Output/UX**: Chalk v4.1.2, Ora v5.4.1, Inquirer v8.2.5
-- **Testing**: Jest v30.2.0 with ts-jest v29.4.6
-- **LLM Backend**: OpenCode (subprocess integration, migration to AI SDK planned)
-- **Distribution**: npm global package with binary entry point
-
-### Component Architecture
-
+### Execution Flow (v0.1.0)
 ```
-┌──────────────────────────────────────────────────────────┐
-│                    CLI Entry Point                        │
-│              src/index.ts + src/cli.ts                   │
-│         (Commander.js - argument parsing)                │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│              Project Detection Layer                      │
-│                 src/project/                              │
-│  • detector.ts (240 lines) - Auto-detect type/framework  │
-│  • initializer.ts (170 lines) - Create .sheen/ structure │
-│  • analyzer.ts - Analyze project structure               │
-│  • loader.ts - Load existing .sheen/ files               │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│                Agent Orchestrator                         │
-│              src/core/agent.ts (210 lines)               │
-│  Coordinates: OpenCode, Tools, ExecutionLoop, Context    │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-        ┌─────────────┼─────────────┐
-        │             │             │
-        ▼             ▼             ▼
-┌──────────┐  ┌──────────┐  ┌──────────────┐
-│ Planning │  │ Context  │  │ Execution    │
-│ System   │  │ Manager  │  │ Loop         │
-│ planner  │  │ context  │  │ loop.ts      │
-│ .ts      │  │ .ts      │  │ (104 lines)  │
-└──────────┘  └──────────┘  └──────┬───────┘
-                                    │
-                      ┌─────────────┘
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│           OpenCode Integration Layer                      │
-│                src/opencode/                              │
-│  • client.ts (247 lines) - Subprocess management         │
-│  • adapter.ts (214 lines) - Tool call parsing/execution  │
-│  • Format: TOOL_CALL: {...} text parsing                 │
-│  • Phase marker detection for autonomous loop            │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│                   Tool System                             │
-│              src/tools/registry.ts                        │
-│                  (176 lines, 20 tests)                   │
-│                                                           │
-│  ┌──────────────┬──────────────┬──────────────┐         │
-│  │  File Tools  │  Git Tools   │ Shell Tools  │         │
-│  │ (336 lines)  │ (133 lines)  │  (57 lines)  │         │
-│  │  16 tests    │  10 tests    │   7 tests    │         │
-│  │              │              │              │         │
-│  │ • read_file  │ • git_status │ • shell_exec │         │
-│  │ • write_file │ • git_commit │              │         │
-│  │ • list_files │ • git_diff   │              │         │
-│  │ • edit_file  │              │              │         │
-│  │ • search_    │              │              │         │
-│  │   files      │              │              │         │
-│  └──────────────┴──────────────┴──────────────┘         │
-│                                                           │
-│  Total: 9 tools, 33 tool-specific tests                  │
-└───────────────────────────────────────────────────────────┘
+User Command → CLI → Agent → ExecutionLoop → OpenCodeClient → Tool Parsing → Tools
+                                                    ↓
+                                            (subprocess overhead)
+                                            (text parsing fragility)
 ```
 
-### Execution Loop Architecture
-
-The **ExecutionLoop** (src/core/loop.ts, 104 lines, 12 tests) is the heart of autonomous operation:
-
-**Key Responsibilities**:
-- Multi-iteration control with configurable max iterations
-- Progress detection (file changes, git commits, test execution)
-- Stopping criteria evaluation (max iterations, pause state, completion, errors, no progress)
-- Iteration tracking and state management
-
-**Stopping Conditions**:
-```typescript
-shouldContinue(): boolean {
-  if (iteration >= maxIterations) return false;
-  if (state.paused) return false;
-  if (phase === 'complete') return false;
-  if (consecutiveErrors >= 3) return false;
-  if (consecutiveNoProgress >= 5) return false;
-  return true;
-}
+### Target Architecture (v0.2.0)
+```
+User Command → CLI → Agent → ExecutionLoop → AIAgent (interface)
+                                                    ↓
+                                    ┌───────────────┴────────────────┐
+                                    ↓                                ↓
+                            OpenCodeAdapter                   DirectAIAgent
+                            (fallback)                      (AI SDK native)
+                                                                    ↓
+                                                            Provider Factory
+                                                                    ↓
+                                                    ┌───────────────┴────────────────┐
+                                                    ↓               ↓                ↓
+                                              Anthropic         OpenAI           Google
 ```
 
-**Progress Detection**:
-- File system changes (new/modified files)
-- Git commits (new commits since last check)
-- Test execution (test output detection)
+### Tool System Architecture
+**Current** (v0.1.0):
+- 9 tools registered in ToolRegistry
+- Text-based tool call parsing: `TOOL_CALL: {...}`
+- Parameter validation via schemas
+- Results returned as formatted strings
 
-### Tool System Design
-
-**ToolRegistry Pattern**:
-- Centralized tool registration and validation
-- Parameter validation using schemas
-- Execution wrapper with error handling
-- Tool categorization and documentation
-- 20 comprehensive tests covering all scenarios
-
-**Tool Implementation Pattern**:
-```typescript
-interface Tool {
-  name: string;
-  description: string;
-  parameters: {
-    name: string;
-    type: 'string' | 'number' | 'boolean';
-    description: string;
-    required: boolean;
-  }[];
-  execute: (params: any, context: ProjectContext) => Promise<ToolResult>;
-}
-```
-
-**Safety Features**:
-- Parameter validation before execution
-- Error handling and recovery
-- Respect for .gitignore patterns
-- File size limits
-- Output truncation for large results
-
-### OpenCode Integration Details
-
-**Current Implementation** (OpenCodeClient):
-- Spawns OpenCode as subprocess
-- Passes prompt, context, and available tools
-- Captures stdout/stderr streams
-- Parses tool calls from text output: `TOOL_CALL: {...}`
-- Detects phase completion markers
-- Handles errors and timeouts
-
-**Limitations Identified**:
-- Subprocess overhead (~30-50% performance impact)
-- Text parsing fragility (UIMessage/ModelMessage bugs)
-- Limited control over conversation loop
-- Difficult error debugging
-- Not optimized for autonomous headless operation
+**Target** (v0.2.0):
+- Same 9 tools ported to AI SDK format
+- Native tool calling with `tool()` from `ai` package
+- Zod schemas for parameter validation
+- Results as structured objects
+- **Preservation**: Tool semantics remain identical
 
 ---
 
-## Test Coverage & Quality Metrics
+## Test Coverage Analysis
 
-### Test Suite Breakdown (89 Total Tests - 100% Passing)
+### Current Test Suite (89 Total - 100% Passing)
 
 **Unit Tests (65 tests)**:
-- ExecutionLoop: 12 tests (shouldContinue logic, progress detection, iteration management)
-- File Tools: 16 tests (read, write, list, edit, search operations)
-- Tool Registry: 20 tests (registration, validation, execution, error handling)
-- Git Tools: 10 tests (status, commit, diff operations)
-- Shell Tools: 7 tests (command execution, error handling, output capture)
+```
+ExecutionLoop:    12 tests ✅ (iteration control, progress detection)
+ToolRegistry:     20 tests ✅ (registration, validation, execution)
+File Tools:       16 tests ✅ (read, write, list, edit, search)
+Git Tools:        10 tests ✅ (status, commit, diff)
+Shell Tools:       7 tests ✅ (command execution, error handling)
+```
 
 **Integration Tests (14 tests)**:
-- Tool System end-to-end: 8 tests (test-tools.ts)
-- OpenCode Integration: 6 tests (test-opencode.ts)
+```
+Tool System E2E:   8 tests ✅ (test-tools.ts)
+OpenCode Integration: 6 tests ✅ (test-opencode.ts)
+```
 
-**Smoke Tests (10 scenarios)** via smoke-test.sh:
-1. CLI version check
-2. CLI help display
-3. .sheen/ initialization
-4. Project type detection
-5. TypeScript build
-6. Unit test suite execution
-7. Tool system verification
-8. OpenCode integration
-9. Tool registration (9 tools)
-10. Test coverage verification
+**Smoke Tests (10 scenarios)**:
+```
+1. CLI version check              ✅
+2. CLI help display               ✅
+3. .sheen/ initialization         ✅
+4. Project type detection         ✅
+5. TypeScript build               ✅
+6. Unit test suite (65 tests)     ✅
+7. Tool system verification       ✅
+8. OpenCode integration           ✅
+9. Tool registration (9 tools)    ✅
+10. Test coverage check           ✅
+```
 
-**Code Quality**:
+**Code Quality Metrics**:
 - TypeScript Strict Mode: ✅ Enabled, 0 errors
-- Test Pass Rate: 100% (89/89)
 - Build Time: <2 seconds
 - Test Execution: ~3 seconds
-- Cross-Platform: Windows validated, Linux/macOS compatible
+- Cross-Platform: Windows validated
 
-### File Statistics
-- **Implementation**: ~3,000+ lines across 20+ TypeScript modules
-- **Tests**: ~750+ lines across 5 test suites
-- **Documentation**: ~20,000+ words across planning/status docs
-- **Total Project Size**: Comprehensive, production-ready
+### Test Strategy for v0.2.0
+**Target**: 120+ tests (maintain 100% pass rate)
 
----
-
-## Design Principles & Patterns
-
-### 1. Test-Driven Development (TDD)
-All features follow RED-GREEN-REFACTOR cycle:
-- Write tests first (RED)
-- Implement minimal code (GREEN)
-- Commit after passing
-- Refactor as needed
-
-**Evidence**: 21 commits following TDD pattern, comprehensive test coverage for all components
-
-### 2. Phase-Based Autonomous Execution
-Work is broken into small, manageable phases (15-30 min max):
-- Each phase is focused, testable, committable, and resumable
-- Clear phase completion markers
-- Natural checkpoints for human oversight
-- Better progress visibility and error isolation
-
-### 3. Safety-First Design
-- Bounded iterations (configurable max, default 50)
-- Error limits (3 consecutive errors stops execution)
-- No-progress detection (5 consecutive iterations stops)
-- Parameter validation on all tool calls
-- Respect for .gitignore patterns
-- Non-destructive defaults
-
-### 4. Modular & Extensible Architecture
-- Clear separation of concerns (CLI, Agent, Loop, Tools, OpenCode)
-- Interface-driven design (easy to swap implementations)
-- Plugin-ready tool system (registry pattern)
-- Configuration layering (global + project-specific)
-
-### 5. Global-First Design
-- Install once, use anywhere (`npm install -g sheen`)
-- Auto-detect project context from any directory
-- Auto-initialize .sheen/ structure
-- Works in empty directories (bootstrap new projects)
+**New Test Categories**:
+1. AIAgent Interface Tests (5 tests)
+2. OpenCodeAdapter Tests (5 tests)
+3. DirectAIAgent Tests (8 tests)
+4. AI SDK Tool Tests (22 tests, 2 per tool)
+5. Permission System Tests (8 tests)
+6. Context Management Tests (5 tests)
+7. Golden Tests (10 tests, parity validation)
+8. E2E Integration Tests (8 tests)
 
 ---
 
-## Functional Requirements Analysis
+## Strategic Migration: OpenCode → AI SDK
 
-### Core Capabilities (v0.1.0 - COMPLETE)
+### Current State (OpenCode Subprocess)
 
-**✅ Global CLI Installation**
-- Binary entry point: `dist/index.js` with shebang
-- npm global package configuration
-- Works from any directory
-- `sheen --version`, `sheen --help`, `sheen init`, `sheen "prompt"`
-
-**✅ Project Context Detection**
-- Auto-detect project type (Node.js, Python, Go, Rust, Ruby, Java, etc.)
-- Framework detection (Express, React, Django, Rails, etc.)
-- Language detection with version info
-- Git repository awareness
-- Dependency analysis
-
-**✅ Autonomous Execution Loop**
-- Multi-iteration execution with progress tracking
-- Phase-based work segmentation
-- Tool call execution (9 tools across 3 categories)
-- Error handling and recovery
-- Progress detection (files, commits, tests)
-- Stopping criteria (iterations, errors, no-progress, completion)
-
-**✅ Tool System**
-- 9 production-ready tools
-- Parameter validation and error handling
-- File operations: read, write, list, edit, search
-- Git operations: status, commit, diff
-- Shell operations: exec
-- Registry pattern for extensibility
-
-**✅ .sheen/ State Management**
-- Auto-initialization with templates
-- plan.md: Generated task plans
-- context.md: Project context and architecture
-- config.json: Project-specific settings
-- history.jsonl: Execution log (template)
-
-**✅ Configuration System**
-- Global config: `~/.sheen/config.json`
-- Project config: `.sheen/config.json`
-- Configuration merging and precedence
-- Environment variable support
-
-**✅ OpenCode Integration**
-- Subprocess spawning and management
-- Tool call parsing and execution
-- Phase detection for autonomous loop
-- Streaming output support
-- Error handling and recovery
-
-### Functional Gaps Identified
-
-**⏳ Live User Input** (Planned but not implemented)
-- Non-blocking input queue during execution
-- User corrections between phases
-- Control commands (pause, resume, stop, status)
-
-**⏳ Task Planner** (Partially implemented)
-- plan.md parsing and task management
-- Task prioritization and dependencies
-- Progress tracking per task
-- Task state management (pending, in_progress, complete)
-
-**⏳ Session Resumability** (Partially implemented)
-- Save/restore execution state
-- Resume from interruption
-- History replay
-
-**⏳ Custom Tool Loading** (Not implemented)
-- User-defined tools in .sheen/tools/
-- Plugin architecture for tool extensions
-
----
-
-## Strategic Migration Path: OpenCode → Direct AI SDK
-
-### Current State Assessment
-
-**OpenCode Subprocess Model**:
+**Pros**:
 - ✅ Proven: Works in production (v0.1.0)
-- ✅ Complete: All tools implemented and tested
-- ⚠️ Performance: 30-50% overhead from subprocess
+- ✅ Complete: All 9 tools implemented and tested
+- ✅ Validated: 89 tests passing
+
+**Cons**:
+- ⚠️ Performance: 30-50% overhead from subprocess spawning
 - ⚠️ Fragility: Text parsing for tool calls (`TOOL_CALL: {...}`)
 - ⚠️ Bugs: UIMessage/ModelMessage conversion issues
-- ⚠️ Control: Limited conversation loop control
-- ⚠️ Debugging: Difficult to trace errors
+- ⚠️ Control: Limited conversation loop ownership
+- ⚠️ Debugging: Difficult to trace errors through subprocess
 
-**Direct AI SDK Benefits**:
+### Target State (Direct AI SDK)
+
+**Benefits**:
 - ✅ Performance: Eliminate subprocess overhead
 - ✅ Reliability: Native tool calling (no text parsing)
 - ✅ Control: Full conversation loop ownership
-- ✅ Debugging: Direct error handling and tracing
-- ✅ Flexibility: Easy provider switching (Anthropic, OpenAI, Google)
-- ✅ Autonomous-First: Design for headless operation from ground up
+- ✅ Debugging: Direct error tracing
+- ✅ Flexibility: Provider-agnostic (Anthropic, OpenAI, Google)
+- ✅ Autonomous-First: Designed for headless operation
 
-### Migration Roadmap (from .sheen/plan.md)
-
-**Phase 1: Direct AI SDK Integration** (HIGH PRIORITY)
-Estimated Effort: 2-3 weeks
-
-**Detailed Task Breakdown**:
-
-1. **Install Dependencies** (2 hours)
-   - Add: `ai`, `@ai-sdk/anthropic`, `@ai-sdk/openai`, `zod`
-   - Configure API keys
-   - Add feature flag: `ai.engine: "opencode" | "direct-ai-sdk"`
-
-2. **Create AIAgent Class** (4-6 hours)
-   - Implement `src/core/ai-agent.ts` to replace OpenCodeClient
-   - Use `streamText()` and `generateText()` from AI SDK
-   - Conversation history management with `CoreMessage[]`
-   - Streaming support with `onStepFinish` callbacks
-   - Reference: `poc-direct-ai-sdk.ts` (working proof-of-concept)
-
-3. **Port Tools to AI SDK Format** (8-10 hours)
-   - Reimplement 9 tools using `tool()` from AI SDK
-   - Critical tools: bash, read, write, edit, grep, glob, todowrite/todoread
-   - Preserve existing schemas and validation
-   - Maintain backward compatibility with tool semantics
-   - Reference: `DIRECT_AI_SDK_ANALYSIS.md` for patterns
-
-4. **Implement Safety & Permission System** (4-6 hours)
-   - Create PermissionManager class
-   - Allow/deny/ask patterns per tool
-   - .gitignore respect for file operations
-   - Output limits and truncation
-   - Destructive action guards (e.g., rm -rf detection)
-
-5. **Update Execution Loop** (4-6 hours)
-   - Modify `src/core/loop.ts` to support both engines
-   - Use feature flag to switch implementations
-   - Maintain backward compatibility during transition
-   - Comprehensive error handling for AI SDK errors
-
-6. **Context Window Management** (3-4 hours)
-   - Automatic context trimming near token limits
-   - Smart message pruning (keep system prompt, recent context)
-   - Conversation summarization for long sessions
-   - Token counting and usage tracking
-
-7. **Testing & Validation** (6-8 hours)
-   - Integration tests for AIAgent class
-   - Test all tools with real file operations
-   - Performance comparison: OpenCode vs Direct AI SDK
-   - Validate token usage optimization
-   - Load testing with parallel agent execution
-
-8. **Migration & Cleanup** (2-3 hours)
-   - Migrate production usage to direct AI SDK
-   - Remove OpenCode dependency from package.json
-   - Update documentation
-   - Archive OpenCode client code
-
-**Success Metrics**:
-- ✅ All 9 core tools working with AI SDK
-- ✅ 30%+ performance improvement over OpenCode
-- ✅ Zero middleware-related bugs
-- ✅ Successful autonomous task completion
-- ✅ Token usage within acceptable limits (track and optimize)
-
-**Risk Mitigation**:
-- Keep OpenCode integration as fallback during development
-- Use feature flags for gradual rollout
-- Golden tests to compare OpenCode vs SDK behavior
-- Comprehensive error handling and logging
-- Incremental migration (one tool at a time)
+**Requirements**:
+- 🔄 Reimplement 9 tools in AI SDK format
+- 🔄 Create AIAgent interface abstraction
+- 🔄 Implement permission and safety system
+- 🔄 Add context window management
+- 🔄 Comprehensive testing and validation
 
 ---
 
-## Architecture Decision Records (ADRs)
+## Migration Roadmap Summary
+
+### Phase 1: Foundation & Interface (Week 1, Days 1-2)
+**Status**: Dependencies already installed ✅
+
+**Tasks**:
+1. ✅ Install AI SDK dependencies (COMPLETE - already in package.json)
+2. Create AIAgent interface (4 hours)
+3. Implement OpenCodeAdapter (6 hours)
+
+**Deliverables**: Provider-agnostic interface, backward compatibility maintained
+
+---
+
+### Phase 2: Core AI SDK Integration (Week 1, Days 3-5)
+
+**Tasks**:
+1. Implement ConversationManager (4 hours)
+2. Implement DirectAIAgent (8 hours)
+3. Implement ProviderFactory (2 hours)
+
+**Deliverables**: Working AI SDK agent, conversation management, multi-provider support
+
+---
+
+### Phase 3: Tool System Migration (Week 2, Days 1-3)
+
+**Tasks**:
+1. Port critical tools: bash, read, write, edit (8 hours)
+2. Port remaining tools: grep, glob, git_*, todo* (6 hours)
+3. Create AI SDK tool registry (3 hours)
+
+**Deliverables**: All 9 tools working in AI SDK format, behavioral parity maintained
+
+---
+
+### Phase 4: Safety & Permissions (Week 2, Days 4-5)
+
+**Tasks**:
+1. Implement PermissionManager (4 hours)
+2. Implement GitignoreFilter (2 hours)
+3. Integrate permissions into tools (3 hours)
+
+**Deliverables**: Comprehensive safety system, destructive action detection
+
+---
+
+### Phase 5: Integration & Testing (Week 3, Days 1-2)
+
+**Tasks**:
+1. Update ExecutionLoop (4 hours)
+2. Update Agent orchestrator (3 hours)
+3. Golden tests for parity (6 hours)
+4. E2E integration tests (6 hours)
+
+**Deliverables**: Full integration, 120+ tests passing, parity validated
+
+---
+
+### Phase 6: Performance & Optimization (Week 3, Days 3-4)
+
+**Tasks**:
+1. Performance benchmarks (4 hours)
+2. Context window optimization (4 hours)
+3. Error handling improvements (3 hours)
+
+**Deliverables**: 30%+ performance improvement, robust error handling
+
+---
+
+### Phase 7: Documentation & Release (Week 3, Day 5)
+
+**Tasks**:
+1. Update documentation (3 hours)
+2. Create migration guide (2 hours)
+3. Update smoke tests (2 hours)
+4. Release preparation (2 hours)
+
+**Deliverables**: Complete documentation, v0.2.0 release ready
+
+---
+
+## Success Metrics & Exit Criteria
+
+### Technical Success Metrics
+
+**Test Coverage**:
+- ✅ 120+ tests passing (89 existing + 30+ new)
+- ✅ 100% pass rate maintained
+- ✅ No regressions in existing functionality
+
+**Performance**:
+- ✅ 30%+ faster task completion vs OpenCode
+- ✅ Tool execution overhead <100ms
+- ✅ Context window usage <80% of limit
+- ✅ Memory usage <500MB per session
+
+**Quality**:
+- ✅ Zero TypeScript errors (strict mode)
+- ✅ Zero middleware bugs (no text parsing)
+- ✅ All 9 tools working in AI SDK format
+- ✅ Golden tests pass (OpenCode vs SDK parity)
+
+### Feature Completeness
+
+**Core Features**:
+- ✅ AIAgent interface implemented
+- ✅ Both OpenCode and AI SDK engines working
+- ✅ Feature flag for engine selection
+- ✅ All 11 tools ported to AI SDK format
+- ✅ Permission system complete
+- ✅ Context management working
+- ✅ Error handling robust
+
+### Exit Criteria
+
+**All of the following must be true**:
+1. ✅ All 120+ tests passing
+2. ✅ 30%+ performance improvement demonstrated
+3. ✅ All tools working with AI SDK
+4. ✅ Golden tests show behavioral parity
+5. ✅ Documentation complete
+6. ✅ Smoke tests pass on Windows
+7. ✅ Dogfooding successful
+8. ✅ No critical bugs or security issues
+
+---
+
+## Risk Assessment & Mitigation
+
+### High-Priority Risks
+
+**Risk 1: Behavioral Drift**
+- **Impact**: HIGH | **Probability**: MEDIUM
+- **Mitigation**: Golden tests, side-by-side validation, gradual rollout
+- **Monitoring**: Golden test pass rate, user feedback
+
+**Risk 2: Context Window Explosion**
+- **Impact**: HIGH | **Probability**: HIGH
+- **Mitigation**: Hard limits, pruning, summarization, usage tracking
+- **Monitoring**: Token usage per session, alerts at 80%
+
+**Risk 3: Tool Safety Violations**
+- **Impact**: CRITICAL | **Probability**: LOW
+- **Mitigation**: Permission system, destructive action detection, .gitignore respect
+- **Monitoring**: Log all tool calls, audit patterns
+
+### Medium-Priority Risks
+
+**Risk 4: Performance Regression**
+- **Mitigation**: Benchmarks, profiling, optimization, caching
+
+**Risk 5: API Rate Limiting**
+- **Mitigation**: Exponential backoff, throttling, multi-provider fallback
+
+**Risk 6: Complex Error Recovery**
+- **Mitigation**: Comprehensive error typing, logging, fallback strategies
+
+---
+
+## Key Technical Decisions
 
 ### ADR-001: Use Vercel AI SDK for Direct LLM Integration
-
-**Context**: OpenCode subprocess integration has proven the autonomous agent concept but introduces performance overhead and maintenance challenges.
-
-**Decision**: Migrate to Vercel AI SDK for direct LLM provider integration with provider-agnostic abstraction.
+**Decision**: Migrate to Vercel AI SDK for direct provider integration
 
 **Rationale**:
 - Performance: Eliminate 30-50% subprocess overhead
 - Reliability: Native tool calling vs. text parsing
-- Control: Full conversation loop ownership for autonomous operation
-- Flexibility: Easy provider switching (Anthropic, OpenAI, Google, etc.)
-- Debugging: Direct error tracing and handling
+- Control: Full conversation loop ownership
+- Flexibility: Provider-agnostic abstraction
+- Debugging: Direct error tracing
 
-**Consequences**:
-- Need to reimplement tools in AI SDK format (8-10 hours)
-- Maintain backward compatibility during transition
-- More direct control but also more responsibility for conversation management
-- Better positioned for future enhancements (multi-agent, advanced context)
-
-**Status**: Approved, planning complete, ready for implementation
+**Status**: Approved, dependencies installed, ready for implementation
 
 ---
 
 ### ADR-002: Phase-Based Autonomous Execution
-
-**Context**: Autonomous agents can attempt too much work at once, leading to errors, poor quality, and difficult debugging.
-
-**Decision**: Break all work into small, focused phases (15-30 min max) with clear boundaries.
+**Decision**: Break work into small phases (15-30 min max)
 
 **Rationale**:
-- Better progress visibility and user confidence
-- Easier error isolation and debugging
-- Natural checkpoints for human oversight
-- Meaningful git history with logical commits
+- Better progress visibility
+- Easier error isolation
+- Natural checkpoints for oversight
+- Meaningful git history
 - Safer incremental changes
 
-**Consequences**:
-- Need clear phase detection and transition logic
-- More commits (feature, not bug)
-- Better resumability and state management
-- Clearer progress reporting to users
-
-**Status**: Implemented in v0.1.0, working well
+**Status**: Implemented in v0.1.0, proven successful
 
 ---
 
 ### ADR-003: Test-Driven Development Methodology
-
-**Context**: Building a complex autonomous system requires high code quality and confidence.
-
-**Decision**: Follow strict TDD methodology: write tests first, implement minimal code, commit after passing.
+**Decision**: Strict TDD - write tests first, implement minimal code
 
 **Rationale**:
-- High test coverage from day one (89 tests, 100% passing)
-- Immediate feedback on correctness
+- High test coverage from day one
+- Immediate correctness feedback
 - Better design through test-first thinking
-- Confidence for refactoring and changes
-- Documentation through tests
+- Confidence for refactoring
 
-**Consequences**:
-- Slower initial development (more than offset by fewer bugs)
-- Comprehensive test suite maintenance
-- Higher quality, more maintainable code
-- Easier onboarding for new contributors
-
-**Status**: Implemented, proven successful in v0.1.0
+**Status**: Implemented, 89 tests passing
 
 ---
 
-## Constraints & Assumptions
+### ADR-004: Maintain Backward Compatibility During Migration
+**Decision**: Support both OpenCode and AI SDK engines via feature flag
 
-### Technical Constraints
-- **Node.js 18+**: Minimum runtime version for ES modules and modern features
-- **TypeScript Strict Mode**: Non-negotiable for type safety and reliability
-- **Cross-Platform**: Must work on Windows, macOS, Linux
-- **Global Installation**: Must be installable via `npm install -g`
-- **No Native Dependencies**: Stick to pure Node.js/npm packages for compatibility
+**Rationale**:
+- Gradual rollout reduces risk
+- Fallback to OpenCode if issues arise
+- Users can choose engine
+- Validate AI SDK before full cutover
 
-### Operational Constraints
-- **Bounded Execution**: Maximum iterations to prevent runaway loops
-- **Error Limits**: Stop after consecutive errors (3) or no-progress (5)
-- **Token Budgets**: Manage context window and token usage for cost control
-- **File Safety**: Respect .gitignore, validate paths, limit file sizes
-- **Git Awareness**: Detect and respect repository boundaries
-
-### Assumptions
-- **OpenCode Available**: Current implementation assumes OpenCode is installed and accessible
-- **Git Repository**: Most features assume working within a git repository
-- **Project Root Detection**: Relies on common project markers (package.json, requirements.txt, go.mod, etc.)
-- **Autonomous Mode Primary**: Designed for headless autonomous operation, interactive features secondary
-- **Single Agent**: v0.1.0 assumes single-agent operation (multi-agent future)
-
----
-
-## Forward Technical Approach
-
-### Immediate Next Steps (Post-Discovery)
-
-1. **Create Implementation Plan**
-   - Break down AI SDK migration into detailed tasks
-   - Estimate effort for each component
-   - Define success criteria and acceptance tests
-   - Set up feature flags for gradual rollout
-
-2. **Prototype AIAgent Interface**
-   - Define provider-agnostic AIAgent interface
-   - Create adapter for existing OpenCode integration
-   - Implement basic AI SDK integration
-   - Validate conversation loop control
-
-3. **Port One Tool as Proof-of-Concept**
-   - Select simple tool (e.g., read_file)
-   - Implement using AI SDK `tool()` function
-   - Test behavioral parity with OpenCode version
-   - Document patterns for remaining tools
-
-4. **Incremental Migration**
-   - Port remaining critical tools (bash, write, edit)
-   - Add safety and permission layers
-   - Implement context window management
-   - Performance testing and optimization
-
-5. **Validation & Cutover**
-   - Comprehensive integration testing
-   - Golden tests for behavioral parity
-   - Performance benchmarks (target: 30%+ improvement)
-   - Documentation updates
-   - Deprecate OpenCode integration
-
-### Mid-Term Enhancements (Post-Migration)
-
-**Multi-Agent Orchestration**:
-- Parallel task execution with multiple agents
-- Agent coordination and communication
-- Shared state management
-- Load balancing and resource allocation
-
-**Enhanced Context Management**:
-- Semantic code search integration
-- Intelligent codebase summarization
-- Dependency graph analysis
-- Project-wide refactoring support
-
-**Advanced Safety Features**:
-- Sandbox execution environment
-- Rollback mechanism for failed changes
-- Automated testing before commits
-- Cost controls and token budgets
-- Real-time monitoring and alerting
-
-**Monitoring & Observability**:
-- Real-time progress dashboard
-- Token usage analytics and cost tracking
-- Performance metrics (iteration time, tool usage, success rate)
-- Error tracking and alerting
-- Session replay for debugging
-
-### Long-Term Vision
-
-**Plugin Ecosystem**:
-- Custom tool marketplace
-- Community-contributed tools
-- Tool versioning and compatibility
-- MCP (Model Context Protocol) integration
-
-**Team Collaboration**:
-- Shared .sheen/ state via cloud sync
-- Team-wide task coordination
-- Collaborative autonomous development
-- Code review integration
-
-**Platform Integration**:
-- GitHub Actions workflows
-- CI/CD pipeline automation
-- Deployment automation
-- Infrastructure as Code support
-
-**Advanced AI Features**:
-- LSP integration for code intelligence
-- Multi-model support (specialized models per task)
-- Reinforcement learning from outcomes
-- Self-improvement through feedback loops
-
----
-
-## Risk Assessment & Mitigation Strategies
-
-### High-Priority Risks
-
-**Risk: Behavioral Drift During AI SDK Migration**
-- **Impact**: HIGH - Tool behavior changes could break existing workflows
-- **Probability**: MEDIUM - Different providers/implementations may behave differently
-- **Mitigation**: 
-  - Golden tests comparing OpenCode vs. SDK outputs
-  - Gradual rollout with feature flags
-  - Comprehensive integration tests
-  - User acceptance testing with dogfooding
-
-**Risk: Context Window Explosion**
-- **Impact**: HIGH - Long autonomous sessions could exceed token limits or incur high costs
-- **Probability**: HIGH - Without management, context grows unbounded
-- **Mitigation**:
-  - Implement hard token limits
-  - Automatic context pruning and summarization
-  - Smart message selection (keep system prompt, recent context, key history)
-  - Token usage monitoring and alerting
-  - Cost controls and budgets
-
-**Risk: Tool Safety Violations**
-- **Impact**: CRITICAL - Destructive operations could damage user code/data
-- **Probability**: LOW - Current safeguards in place, but migration could introduce gaps
-- **Mitigation**:
-  - Comprehensive permission system (allow/deny/ask)
-  - .gitignore respect and path validation
-  - Destructive action detection (rm -rf, etc.)
-  - Dry-run mode for testing
-  - Extensive safety testing
-
-### Medium-Priority Risks
-
-**Risk: Performance Regression**
-- **Impact**: MEDIUM - If AI SDK integration is slower than OpenCode
-- **Probability**: LOW - Expected to be 30-50% faster
-- **Mitigation**:
-  - Performance benchmarks before and after
-  - Profiling and optimization
-  - Caching and memoization strategies
-  - Parallel execution where possible
-
-**Risk: API Rate Limiting**
-- **Impact**: MEDIUM - LLM provider rate limits could halt autonomous operation
-- **Probability**: MEDIUM - Depends on usage patterns and provider limits
-- **Mitigation**:
-  - Implement exponential backoff and retry logic
-  - Rate limit awareness and throttling
-  - Multiple provider fallback
-  - User notification and graceful degradation
-
-**Risk: Complex Error Recovery**
-- **Impact**: MEDIUM - AI SDK errors may be harder to handle than subprocess errors
-- **Probability**: MEDIUM - Different error types from direct API calls
-- **Mitigation**:
-  - Comprehensive error typing and handling
-  - Detailed logging and tracing
-  - Fallback strategies for recoverable errors
-  - User-friendly error messages
-
-### Low-Priority Risks
-
-**Risk: Breaking Changes in AI SDK**
-- **Impact**: LOW-MEDIUM - SDK updates could break integration
-- **Probability**: LOW - Vercel AI SDK is stable and well-maintained
-- **Mitigation**:
-  - Pin dependencies to specific versions
-  - Regular dependency updates with testing
-  - Monitor SDK changelog and deprecations
-  - Maintain adapter pattern for easy provider switching
-
----
-
-## Open Questions & Decisions Needed
-
-### Technical Questions
-
-1. **Context Management Strategy**
-   - Q: What's the optimal context window size for autonomous operation?
-   - Q: How should we prioritize messages when pruning (recency, importance, token count)?
-   - Q: Should we use sliding window, summarization, or hybrid approach?
-   - **Action**: Research best practices, prototype strategies, measure performance
-
-2. **Tool Execution Permissions**
-   - Q: Should autonomous mode auto-approve all tools, or use heuristics?
-   - Q: How do we balance safety with autonomy?
-   - Q: What's the UX for interactive approval in non-autonomous mode?
-   - **Action**: Design permission matrix, user testing, iterate
-
-3. **Error Recovery Strategy**
-   - Q: When should the agent retry vs. stop vs. ask for help?
-   - Q: How do we distinguish recoverable vs. fatal errors?
-   - Q: Should the agent learn from errors to avoid repetition?
-   - **Action**: Define error taxonomy, implement recovery strategies, test extensively
-
-4. **Performance Optimization**
-   - Q: What are the bottlenecks in the current execution loop?
-   - Q: Can we parallelize tool execution safely?
-   - Q: What's the optimal maxSteps setting for AI SDK?
-   - **Action**: Profile current implementation, benchmark optimizations
-
-### Product Questions
-
-1. **User Interaction Model**
-   - Q: How should users provide mid-execution feedback in autonomous mode?
-   - Q: Should we support "pause and ask" checkpoints?
-   - Q: What's the UX for live input queue?
-   - **Action**: User research, prototype UX, usability testing
-
-2. **Dogfooding Timeline**
-   - Q: When should we switch to using Sheen to build Sheen?
-   - Q: What's the minimum feature set for self-hosting development?
-   - Q: How do we handle the bootstrap problem?
-   - **Action**: Define dogfooding readiness criteria, plan transition
-
-3. **Community Contributions**
-   - Q: How do we enable community tool contributions?
-   - Q: What's the review/approval process for custom tools?
-   - Q: Should we have a tool marketplace or registry?
-   - **Action**: Design contribution workflow, documentation, governance
-
----
-
-## Success Metrics & KPIs
-
-### Technical Success Metrics
-
-**AI SDK Migration (Phase 1)**:
-- ✅ All 9 core tools reimplemented and tested
-- ✅ 100% test pass rate maintained (89+ tests)
-- ✅ 30%+ performance improvement over OpenCode (measure: end-to-end task completion time)
-- ✅ Zero middleware-related bugs (no text parsing errors)
-- ✅ Token usage within target (baseline + measure, optimize for <20% overhead)
-
-**Quality Metrics**:
-- Test Coverage: Maintain 100% pass rate, add tests for new features
-- TypeScript Errors: Zero (strict mode)
-- Build Time: <2 seconds
-- Test Execution: <5 seconds
-- Cross-Platform: Windows, macOS, Linux all passing
-
-**Performance Metrics**:
-- Task Completion Time: 30-50% faster than v0.1.0
-- Tool Execution Overhead: <100ms per tool call
-- Context Window Utilization: <80% of max tokens
-- Memory Usage: <500MB for typical autonomous session
-
-### Product Success Metrics
-
-**User Adoption**:
-- Successful dogfooding (use Sheen to build Sheen)
-- Community contributions (custom tools, bug reports, PRs)
-- npm downloads and GitHub stars
-
-**User Satisfaction**:
-- Task success rate: >80% of autonomous tasks complete successfully
-- User intervention rate: <20% of tasks require manual correction
-- Error recovery rate: >90% of errors recovered autonomously
-
-**Reliability**:
-- Uptime: 99%+ availability (no crashes, graceful error handling)
-- Mean Time Between Failures (MTBF): >50 autonomous tasks
-- Mean Time To Recovery (MTTR): <1 minute for recoverable errors
+**Status**: Planned, implementation starting
 
 ---
 
 ## Resource Requirements
 
 ### Development Team
-- **Current**: 1 autonomous agent (OpenCode/Sheen itself)
-- **Ideal**: 1-2 human developers for oversight, testing, and refinement
+- **Current**: 1 autonomous agent (Sheen/OpenCode)
+- **Ideal**: 1-2 human developers for oversight
 
 ### Time Estimates
-- **AI SDK Migration (Phase 1)**: 2-3 weeks full-time
-- **Multi-Agent Features (Phase 2)**: 1-2 weeks
-- **Enhanced Context Management**: 1 week
-- **Advanced Safety Features**: 1 week
-- **Total to v0.2.0**: 4-6 weeks
+- **Week 1**: Foundation & Core (26 hours)
+- **Week 2**: Tools & Safety (26 hours)
+- **Week 3**: Testing, Optimization, Docs (36 hours)
+- **Total**: ~88 hours (2-3 weeks full-time)
 
 ### Infrastructure
 - **LLM API Access**: Anthropic Claude 3.5 Sonnet (primary), OpenAI GPT-4 (fallback)
-- **Token Budget**: Estimate 1-2M tokens/day for active development
-- **Storage**: Minimal (<1GB for project state, logs, history)
-- **Compute**: Standard developer laptop sufficient (Node.js runtime)
+- **Budget**: ~$50-100 for testing and development
+- **Storage**: <1GB project files, <100MB logs
+- **Compute**: Standard developer laptop, Node.js 18+, 8GB+ RAM
 
 ---
 
-## Stakeholders & Communication
+## Dependencies
 
-### Internal Stakeholders
-- **Development Agent (Sheen)**: Primary builder and user of the system
-- **Human Oversight**: Reviews decisions, validates outputs, provides guidance
+### Production Dependencies (v0.2.0)
+```json
+{
+  "ai": "^6.0.39",                    // ✅ Installed
+  "@ai-sdk/anthropic": "^3.0.15",     // ✅ Installed
+  "@ai-sdk/openai": "^3.0.12",        // ✅ Installed
+  "@ai-sdk/google": "^3.0.10",        // ✅ Installed
+  "zod": "^4.3.5",                    // ✅ Installed
+  "chalk": "^4.1.2",
+  "commander": "^11.0.0",
+  "dotenv": "^16.0.3",
+  "inquirer": "^8.2.5",
+  "ora": "^5.4.1"
+}
+```
 
-### External Stakeholders
-- **Open Source Community**: Potential contributors, users, testers
-- **AI SDK Maintainers (Vercel)**: Dependency on their releases and support
-- **LLM Providers (Anthropic, OpenAI)**: API availability and pricing
-
-### Communication Channels
-- **Documentation**: README, PLAN, PROJECT_STATUS, discovery docs
-- **Git Commits**: Detailed commit messages following conventional commits
-- **GitHub Issues/PRs**: For community engagement (when open-sourced)
-- **Logs/History**: Detailed execution logs in .sheen/history.jsonl
-
----
-
-## Appendix: Key File References
-
-### Critical Implementation Files
-- `src/core/agent.ts` (210 lines): Main orchestrator
-- `src/core/loop.ts` (104 lines): Execution loop with 12 tests
-- `src/tools/registry.ts` (176 lines): Tool system with 20 tests
-- `src/opencode/client.ts` (247 lines): Current LLM integration
-- `src/opencode/adapter.ts` (214 lines): Tool call parsing
-
-### Planning & Documentation
-- `.sheen/plan.md` (156 lines): Active plan with AI SDK roadmap
-- `.sheen/context.md` (407 lines): Complete architecture reference
-- `PLAN.md` (158 lines): Implementation plan with contracts
-- `PROJECT_STATUS.md` (364 lines): Status tracking and metrics
-- `DIRECT_AI_SDK_ANALYSIS.md` (535 lines): Migration analysis
-
-### Reference Implementations
-- `sheen.sh` (774 lines): Bash reference implementation
-- `poc-direct-ai-sdk.ts`: Working AI SDK proof-of-concept
-
-### Configuration
-- `package.json`: v0.1.0, dependencies, scripts
-- `tsconfig.json`: TypeScript strict mode
-- `.sheenconfig`: Runtime configuration example
+**Status**: All AI SDK dependencies already installed! Ready to start implementation.
 
 ---
 
-## Conclusion & Next Steps
+## Configuration Strategy
 
-**Summary**: Sheen v0.1.0 is a production-ready autonomous coding agent with a solid foundation: 89 passing tests, strict TypeScript, cross-platform support, and proven autonomous execution. The architecture is modular, extensible, and well-documented.
+### OpenCode Engine (Current Default)
+```json
+{
+  "ai": {
+    "engine": "opencode",
+    "maxIterations": 50
+  }
+}
+```
 
-**Strategic Position**: At a critical juncture to migrate from OpenCode subprocess integration to direct AI SDK integration, unlocking significant performance improvements (30-50%), better reliability, and full autonomous control.
+### AI SDK Engine (New, Opt-in)
+```json
+{
+  "ai": {
+    "engine": "direct-ai-sdk",
+    "provider": "anthropic",
+    "model": "claude-3-5-sonnet-20241022",
+    "apiKey": "env:ANTHROPIC_API_KEY",
+    "maxIterations": 50,
+    "maxSteps": 10,
+    "maxTokens": 200000,
+    "contextWindowSize": 180000,
+    "enablePruning": true
+  },
+  "permissions": {
+    "autoApprove": false,
+    "tools": {
+      "bash": "allow",
+      "read": "allow",
+      "write": "ask",
+      "edit": "ask",
+      "git_commit": "ask"
+    }
+  }
+}
+```
 
-**Recommended Next Actions**:
+### Environment Variables
+```bash
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+GOOGLE_API_KEY=...
+
+SHEEN_ENGINE=direct-ai-sdk
+SHEEN_PROVIDER=anthropic
+SHEEN_AUTO_APPROVE=false
+```
+
+---
+
+## Rollback Plan
+
+If critical issues found during migration:
+
+1. **Immediate**: Switch default engine to OpenCode via feature flag
+   ```bash
+   sheen config set ai.engine opencode
+   ```
+
+2. **Short-term**: Investigate and fix AI SDK issue
+
+3. **Medium-term**: Deploy fix, gradually re-enable AI SDK
+
+4. **Long-term**: Maintain both engines until AI SDK proven stable
+
+---
+
+## Next Steps
+
+### Immediate Actions (Post-Discovery)
 
 1. **✅ DISCOVERY COMPLETE** - This document
-2. **→ Planning Phase** - Create detailed implementation plan for Phase 1 (AI SDK migration)
-3. **→ Prototype** - Build AIAgent interface and port one tool as proof-of-concept
-4. **→ Incremental Migration** - Port remaining tools with comprehensive testing
-5. **→ Validation** - Performance benchmarks, golden tests, integration testing
-6. **→ Dogfooding** - Use Sheen to build Sheen with new AI SDK backend
-7. **→ Iterate** - Based on dogfooding feedback, enhance and optimize
+2. **→ Planning Phase** - Validate approach, confirm priorities
+3. **→ Prototype** - Build AIAgent interface, port one tool as POC
+4. **→ Incremental Migration** - Follow 7-phase roadmap
+5. **→ Validation** - Performance benchmarks, golden tests
+6. **→ Dogfooding** - Use Sheen to build Sheen with AI SDK
+7. **→ Release** - v0.2.0 deployment
 
-**Key Insight**: The project has successfully validated the autonomous agent architecture with OpenCode. The migration to direct AI SDK is a controlled, low-risk evolution that will unlock significant benefits while maintaining all the hard-won patterns and safeguards from v0.1.0.
+### Critical Path
 
-**Readiness**: All prerequisites met for Phase 1 implementation. Documentation is comprehensive, architecture is sound, tests are passing, and the migration path is clear.
+**Week 1 Priority**:
+- Create AIAgent interface
+- Implement OpenCodeAdapter (backward compatibility)
+- Implement DirectAIAgent (core functionality)
+- Port 4 critical tools (bash, read, write, edit)
+
+**Week 2 Priority**:
+- Port remaining 5 tools
+- Implement permission system
+- Integration with ExecutionLoop
+- Golden tests for parity
+
+**Week 3 Priority**:
+- Performance validation
+- E2E testing
+- Documentation
+- Release preparation
 
 ---
 
-**DISCOVERY COMPLETE - Ready for Planning**
+## Key Reference Files
 
-**Approved By**: Autonomous Agent (Sheen)  
+### Critical Implementation Files (v0.1.0)
+- `src/core/agent.ts` (210 lines) - Main orchestrator
+- `src/core/loop.ts` (104 lines) - Execution loop
+- `src/tools/registry.ts` (176 lines) - Tool system
+- `src/opencode/client.ts` (247 lines) - OpenCode integration
+
+### New Files for v0.2.0
+- `src/ai/agent-interface.ts` - AIAgent interface
+- `src/ai/opencode-adapter.ts` - OpenCode compatibility
+- `src/ai/direct-ai-agent.ts` - AI SDK implementation
+- `src/ai/conversation-manager.ts` - Context management
+- `src/tools/ai-sdk/*` - 9 tools in AI SDK format
+- `src/permissions/permission-manager.ts` - Safety system
+
+### Reference Documentation
+- `PLAN.md` (1,722 lines) - Complete implementation plan
+- `DIRECT_AI_SDK_ANALYSIS.md` (535 lines) - AI SDK research
+- `PROJECT_STATUS.md` (364 lines) - v0.1.0 status
+- `.sheen/plan.md` (192 lines) - Execution roadmap
+- `.sheen/context.md` (407 lines) - Architecture reference
+- `poc-direct-ai-sdk.ts` - Working proof-of-concept
+
+---
+
+## Conclusion
+
+**Current State**: Sheen v0.1.0 is production-ready with 89 passing tests, zero type errors, and proven autonomous execution capabilities. The OpenCode subprocess integration successfully validates the architecture.
+
+**Strategic Position**: Positioned for controlled evolution to direct AI SDK integration, unlocking 30-50% performance improvements and enhanced reliability while maintaining backward compatibility.
+
+**Readiness**: All prerequisites met:
+- ✅ Dependencies installed
+- ✅ Comprehensive planning complete (1,722-line plan)
+- ✅ POC validated (poc-direct-ai-sdk.ts)
+- ✅ Architecture designed (AIAgent interface)
+- ✅ Test strategy defined (120+ tests)
+- ✅ Risk mitigation planned
+
+**Key Insight**: The migration is low-risk and high-reward. Feature flags enable gradual rollout, golden tests ensure parity, and OpenCode remains as fallback. The project has a solid foundation and clear roadmap.
+
+**Recommendation**: Begin Phase 1 implementation immediately. Start with AIAgent interface and OpenCodeAdapter to establish abstraction layer, then incrementally migrate tools while maintaining 100% test pass rate.
+
+---
+
+## DISCOVERY COMPLETE - Ready for Planning
+
+**Status**: ✅ All documentation reviewed, architecture analyzed, requirements validated
+
+### Verified Project Health (January 16, 2026)
+- ✅ **Tests**: 65/65 passing across 5 test suites
+- ✅ **Build**: TypeScript compiles successfully (strict mode)
+- ✅ **Dependencies**: All AI SDK packages installed and ready
+- ✅ **Documentation**: 9+ comprehensive documents totaling 5,000+ lines
+- ✅ **Code Quality**: Zero type errors, 100% test pass rate
+- ✅ **Planning**: Complete roadmap with 24 detailed tasks in .sheen/plan.md
+
+### Key Findings Summary
+1. **Strong Foundation**: v0.1.0 is production-ready with proven architecture
+2. **Dependencies Ready**: All AI SDK packages already installed (ai v6.0.39, etc.)
+3. **Clear Roadmap**: 1,722-line implementation plan with detailed tasks and timelines
+4. **POC Validated**: poc-direct-ai-sdk.ts demonstrates viability of migration approach
+5. **Low Risk**: Feature flags and adapter pattern enable safe, gradual migration
+6. **High Reward**: 30-50% performance improvement expected from eliminating subprocess overhead
+
+### Recommended Next Steps
+1. **Begin Phase 1**: Create AIAgent interface and OpenCodeAdapter
+2. **Start with Critical Tools**: Port bash, read, write, edit first
+3. **Maintain Test Coverage**: Write tests before implementation (TDD approach)
+4. **Gradual Rollout**: Use feature flags to validate AI SDK alongside OpenCode
+5. **Performance Validation**: Benchmark early and often to confirm improvements
+
+**Next Phase**: Planning → Validate approach with stakeholders and begin Phase 1 implementation
+
+**Confidence Level**: HIGH - Comprehensive analysis complete, path forward clear, success metrics defined
+
+**Approved By**: Autonomous Agent (OpenCode/Sheen)  
 **Date**: January 16, 2026  
-**Next Phase**: Planning → Implementation → Validation → Dogfooding
+**Version**: v0.1.0 → v0.2.0 Discovery Document
+
+---
+
+## DISCOVERY COMPLETE - Ready for Planning

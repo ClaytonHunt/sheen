@@ -4,7 +4,7 @@ import { ProjectDetector } from './project/detector';
 import { SheenInitializer } from './project/initializer';
 import { GlobalConfig } from './config/global';
 import { Agent } from './core/agent';
-import { showVersion } from './io/banner';
+import { showVersion, showBanner } from './io/banner';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -45,7 +45,12 @@ export async function runCLI() {
     .option('-v, --verbose', 'Verbose output')
     .option('--config <path>', 'Custom config file')
     .action(async (prompt, options) => {
-      const logger = new Logger(options.verbose ? 'debug' : 'info');
+      // Show banner on startup
+      showBanner();
+      console.log('Autonomous coding agent\n');
+      
+      // Default to verbose (debug) mode
+      const logger = new Logger(options.verbose !== undefined ? (options.verbose ? 'debug' : 'info') : 'debug');
       
       logger.debug('CLI started', { prompt, options });
       logger.debug(`Working directory: ${process.cwd()}`);
@@ -83,7 +88,7 @@ export async function runCLI() {
           {
             maxIterations: parseInt(options.maxIterations),
             autoApprove: options.approveAll,
-            logLevel: options.verbose ? 'debug' : 'info'
+            logLevel: options.verbose !== undefined ? (options.verbose ? 'debug' : 'info') : 'debug'
           },
           undefined,
           globalConfig

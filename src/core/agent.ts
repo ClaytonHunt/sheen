@@ -1,4 +1,4 @@
-import { AgentConfig, ProjectContext, ExecutionState, Phase, UserMessage } from '../utils/types.js';
+import { AgentConfig, ProjectContext, ExecutionState, Phase, UserMessage, Task, TaskStatus, TaskPriority } from '../utils/types.js';
 import { OpenCodeClient } from '../opencode/client.js';
 import { ToolCallAdapter } from '../opencode/adapter.js';
 import { ToolRegistry } from '../tools/registry.js';
@@ -75,9 +75,31 @@ export class Agent {
 
     try {
       if (initialPrompt) {
-        // Create initial plan from prompt
+        // When a prompt is provided, first check if a plan already exists
         logger.info(`Prompt: ${initialPrompt}`);
-        this.state.tasks = await this.planner.createPlan(initialPrompt);
+        
+        const planExists = await this.planner.planExists();
+        
+        if (planExists) {
+          // Load existing plan
+          logger.info('Loading existing plan...');
+          await this.planner.loadPlan();
+          
+          // Create discovery/planning/implementation tasks from new prompt
+          logger.info('Creating discovery, planning, and implementation tasks from prompt...');
+          const newTasks = await this.createDiscoveryPlanningTasks(initialPrompt);
+          
+          // Prepend new tasks to the top of the existing plan
+          logger.info('Prepending new tasks to top of existing plan...');
+          this.state.tasks = await this.planner.prependTasks(newTasks);
+          
+          // Get all tasks (new ones are now at the top)
+          this.state.tasks = this.planner.getTasks();
+        } else {
+          // No existing plan, create new plan with discovery/planning/implementation
+          logger.info('Creating new plan with discovery, planning, and implementation phases...');
+          this.state.tasks = await this.planner.createPlan(initialPrompt);
+        }
         
         // Add user prompt to history
         this.contextManager.addUserMessage(initialPrompt);
@@ -121,6 +143,35 @@ export class Agent {
     } finally {
       this.running = false;
     }
+  }
+
+  /**
+   * Create discovery, planning, and implementation tasks for a prompt
+   */
+  private createDiscoveryPlanningTasks(prompt: string): Omit<Task, 'id' | 'createdAt'>[] {
+    return [
+      {
+        description: `Discovery: Analyze requirements and codebase for: ${prompt}`,
+        status: 'pending' as TaskStatus,
+        priority: 'high' as TaskPriority,
+        phase: 'discovery' as Phase,
+        attempts: 0
+      },
+      {
+        description: `Planning: Create detailed implementation plan for: ${prompt}`,
+        status: 'pending' as TaskStatus,
+        priority: 'high' as TaskPriority,
+        phase: 'planning' as Phase,
+        attempts: 0
+      },
+      {
+        description: `Implementation: ${prompt}`,
+        status: 'pending' as TaskStatus,
+        priority: 'high' as TaskPriority,
+        phase: 'implementation' as Phase,
+        attempts: 0
+      }
+    ];
   }
 
   /**

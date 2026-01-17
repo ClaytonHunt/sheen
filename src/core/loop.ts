@@ -99,9 +99,14 @@ export class ExecutionLoop {
             state.currentTask = undefined;
           }
           
-          // Update phase
-          state.phase = 'complete';
-          break;
+          // Check if there are more tasks to process
+          const nextTask = await planner.getNextTask(state);
+          if (!nextTask) {
+            // No more tasks, update phase to complete
+            state.phase = 'complete';
+            break;
+          }
+          // Continue to next task
         }
         
         // Parse and execute tool calls
@@ -147,17 +152,9 @@ export class ExecutionLoop {
           }
         }
         
-        // Check if task is complete
-        // (For MVP, we assume task is complete after one iteration)
-        // In a more sophisticated implementation, we'd check for completion criteria
-        if (state.currentTask) {
-          await planner.updateTask(state.currentTask.id, { 
-            status: 'completed',
-            completedAt: new Date()
-          });
-          logger.info(`Completed task: ${state.currentTask.description}`);
-          state.currentTask = undefined;
-        }
+        // Check if task is complete (don't auto-complete after one iteration)
+        // Wait for OpenCode to signal completion via phase markers
+        // This allows discovery and planning phases to run multiple iterations if needed
         
         // Update progress tracking
         this.updateProgress(state, prevMetrics);
