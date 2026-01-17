@@ -5,14 +5,15 @@
 
 ## Tasks
 
-### Task task_1_1_deps 🔄
+### Task task_1_1_deps ✅
 
 **Description**: Phase 1.1 - Install AI SDK dependencies (ai, @ai-sdk/anthropic, @ai-sdk/openai, @ai-sdk/google, zod)
-**Status**: in_progress
+**Status**: completed
 **Priority**: HIGH
 **Phase**: implementation
 **Created**: 2026-01-16T00:00:00.000Z
 **Started**: 2026-01-17T01:34:28.289Z
+**Completed**: 2026-01-17T13:47:26.000Z
 
 ### Task task_1_2_interface ⏳
 
@@ -189,3 +190,27 @@
 **Priority**: HIGH
 **Phase**: validation
 **Created**: 2026-01-16T00:00:00.000Z
+
+### Task task_8_1_agent_output ⏳
+
+**Description**: Show agent output in npm version - display agent reasoning, tool calls, and responses similar to shell version
+**Status**: pending
+**Priority**: HIGH
+**Phase**: implementation
+**Created**: 2026-01-17T00:00:00.000Z
+
+### Task task_8_2_colorized_output ⏳
+
+**Description**: Add colorized output to npm version - use chalk for color formatting similar to shell version's visual feedback
+**Status**: pending
+**Priority**: HIGH
+**Phase**: implementation
+**Created**: 2026-01-17T00:00:00.000Z
+
+### Task task_8_3_activity_indicator ⏳
+
+**Description**: Add in-progress timer/indicator - show activity status to indicate agent is working and not stalled
+**Status**: pending
+**Priority**: HIGH
+**Phase**: implementation
+**Created**: 2026-01-17T00:00:00.000Z
