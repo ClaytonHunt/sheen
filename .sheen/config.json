@@ -15,7 +15,7 @@
     "coverage"
   ],
   "opencode": {
-    "model": "opencode",
+    "model": "github-copilot/claude-sonnet-4.5",
     "contextWindow": 200000,
     "streamOutput": true
   },

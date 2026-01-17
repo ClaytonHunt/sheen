@@ -56,6 +56,11 @@ export class OpenCodeClient {
       // Build command arguments
       const args = ['run'];
       
+      // Add model flag if configured
+      if (this.config.model) {
+        args.push('--model', this.config.model);
+      }
+      
       // WORKAROUND: Disable --continue flag due to OpenCode bug with message type conversion
       // Error: AI_InvalidPromptError: The messages must be a ModelMessage[]
       // TODO: Re-enable when OpenCode fixes UIMessage[] -> ModelMessage[] conversion

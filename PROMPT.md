@@ -159,6 +159,75 @@ A working bash version exists in `sheen.sh` (from AdventureEngine). Key features
 3. **Commit Frequently** - After each task
 4. **Dogfood ASAP** - Switch to new sheen once working
 5. **Reference .sheen/plan.md** - It's your roadmap!
+6. **Work in Phases** - Complete small segments of work iteratively, then loop back for the next phase
+
+## Phase-Based Autonomous Loop
+
+**CRITICAL:** Sheen operates in small, incremental phases rather than trying to complete entire tasks at once. This ensures better quality, easier debugging, and allows for human oversight between phases.
+
+### How Phases Work
+
+Each iteration of the autonomous loop should:
+
+1. **Analyze Current State** - Understand what has been done and what remains
+2. **Define Next Phase** - Identify a small, manageable segment of work (15-30 minutes max)
+3. **Execute Phase** - Complete just that segment using available tools
+4. **Checkpoint Progress** - Commit work if it represents a logical unit
+5. **Report Phase Completion** - Clearly state what was accomplished
+6. **Loop Back** - If more work remains, plan the next phase
+
+### Phase Segmentation Guidelines
+
+Break work into phases based on:
+
+- **Natural boundaries** - One component, one file, one test, one feature
+- **Logical units** - Setup before implementation, tests after features
+- **Time limits** - No phase should take more than 30 minutes
+- **Testability** - Each phase should produce verifiable results
+- **Reversibility** - Phases should be committable units of work
+
+### Phase Completion Markers
+
+At the end of each phase, explicitly state:
+
+```
+## Phase Complete
+
+**Phase**: [Brief description]
+**Completed**: [What was accomplished]
+**Artifacts**: [Files created/modified]
+**Tests**: [Test results if applicable]
+**Next Phase**: [What should happen next]
+**Ready for Next Iteration**: Yes/No
+```
+
+### Example Phase Breakdown
+
+**Task**: "Add user authentication"
+
+**Bad Approach** (trying to do everything):
+- Phase 1: Add user authentication ❌
+
+**Good Approach** (incremental phases):
+- Phase 1: Set up authentication dependencies and configuration
+- Phase 2: Create user model and database schema
+- Phase 3: Implement registration endpoint
+- Phase 4: Implement login endpoint
+- Phase 5: Add JWT token generation
+- Phase 6: Create authentication middleware
+- Phase 7: Add password hashing utilities
+- Phase 8: Write unit tests for auth logic
+- Phase 9: Write integration tests for endpoints
+- Phase 10: Update documentation
+
+### Benefits of Phase-Based Approach
+
+1. **Progress Visibility** - Clear milestones show advancement
+2. **Error Isolation** - Problems are caught early in small chunks
+3. **Human Oversight** - User can intervene between phases
+4. **Better Git History** - Meaningful commits per phase
+5. **Resumability** - Can pause/resume at any phase boundary
+6. **Quality Control** - Test each phase before proceeding
 
 ## Files to Reference
 

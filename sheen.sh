@@ -461,11 +461,11 @@ run_opencode() {
         # Verbose mode: Show OpenCode output in real-time
         log INFO "Running OpenCode in VERBOSE mode (live output)..." >&2
         echo "" >&2
-        opencode run "$prompt_text" 2>&1 | tee "$log_file" >&2 || opencode_exit_code=$?
+        opencode run --model github-copilot/claude-sonnet-4.5 "$prompt_text" 2>&1 | tee "$log_file" >&2 || opencode_exit_code=$?
         echo "" >&2
     else
         # Normal mode: Run quietly and show summary
-        opencode run "$prompt_text" > "$log_file" 2>&1 || opencode_exit_code=$?
+        opencode run --model github-copilot/claude-sonnet-4.5 "$prompt_text" > "$log_file" 2>&1 || opencode_exit_code=$?
         
         # Show a summary of what happened
         local line_count=$(wc -l < "$log_file")

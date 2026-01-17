@@ -70,10 +70,12 @@ sheen/
 - Work in empty directories (bootstrap new projects)
 
 ### 3. Autonomous with Oversight
-- Run autonomously in loop
-- Accept live user corrections
+- Run autonomously in phase-based loop
+- Complete small segments of work iteratively
+- Accept live user corrections between phases
 - Non-blocking input queue
 - Graceful interruption (Ctrl+C)
+- Clear phase completion markers
 
 ### 4. Safety & Reversibility
 - Warn before destructive operations
@@ -158,20 +160,62 @@ Users can add custom tools in `.sheen/tools/` directory.
    - Create task list
    - Set priorities
    ↓
-5. Execute loop
-   - Get next task
-   - Send to OpenCode
-   - Receive tool calls
-   - Execute tools
-   - Update progress
-   - Check for user input
-   - Repeat
+5. Execute phase-based loop
+   ┌──────────────────────────┐
+   │ Phase Iteration:         │
+   │                          │
+   │ a. Analyze current state │
+   │ b. Plan next phase       │
+   │    (15-30 min work max)  │
+   │ c. Send phase to OpenCode│
+   │ d. Receive tool calls    │
+   │ e. Execute tools         │
+   │ f. Test phase results    │
+   │ g. Commit if complete    │
+   │ h. Report completion     │
+   │ i. Check for user input  │
+   │ j. Loop back to (a)      │
+   └──────────────────────────┘
    ↓
 6. Complete or pause
    - Save state
    - Show summary
    - Exit gracefully
 ```
+
+### Phase-Based Loop Details
+
+Each iteration works on a **single small phase** rather than trying to complete entire tasks:
+
+**Phase Characteristics**:
+- **Time-boxed**: 15-30 minutes of work maximum
+- **Focused**: One component, file, or feature segment
+- **Testable**: Produces verifiable results
+- **Committable**: Represents a logical unit of work
+- **Resumable**: Can pause/resume at phase boundaries
+
+**Phase Progression**:
+```
+Task: "Add user authentication"
+
+Phase 1: Setup auth dependencies ✓
+  → Commit: "feat: add authentication dependencies"
+  
+Phase 2: Create user model ✓
+  → Commit: "feat: add user model and schema"
+  
+Phase 3: Implement registration ✓
+  → Commit: "feat: add user registration endpoint"
+  
+... continue until task complete
+```
+
+**Benefits**:
+- Better progress visibility
+- Easier error isolation and debugging
+- Natural checkpoints for human oversight
+- Meaningful git history
+- Safer incremental changes
 
 ## User Interaction Patterns
 

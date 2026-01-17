@@ -47,6 +47,7 @@ export class GlobalConfig {
       autoApprove: false,
       logLevel: 'info',
       opencode: {
+        model: 'github-copilot/claude-sonnet-4.5',
         streamOutput: true,
         contextWindow: 200000
       },
