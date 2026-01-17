@@ -600,7 +600,7 @@ auto_commit_changes() {
 }
 
 main_loop() {
-    local phase="DISCOVERY"
+    CURRENT_PHASE="DISCOVERY"
     
     while [ $ITERATION -lt $MAX_ITERATIONS ]; do
         ITERATION=$((ITERATION + 1))
@@ -608,24 +608,24 @@ main_loop() {
         
         echo ""
         log INFO "═══════════════════════════════════════════════════════════"
-        log INFO "Iteration #$ITERATION - Phase: $phase ($PHASE_ITERATION_COUNT in phase)"
+        log INFO "Iteration #$ITERATION - Phase: $CURRENT_PHASE ($PHASE_ITERATION_COUNT in phase)"
         log INFO "═══════════════════════════════════════════════════════════"
         echo ""
         
         # Check phase timeout
-        check_phase_timeout "$phase" "$PHASE_ITERATION_COUNT" || {
+        check_phase_timeout "$CURRENT_PHASE" "$PHASE_ITERATION_COUNT" || {
             log WARNING "Forcing phase transition due to timeout"
             # Force phase transition logic here
         }
         
         # Track progress metrics
-        track_progress "$phase"
+        track_progress "$CURRENT_PHASE"
         
         # Run OpenCode
-        local next_phase=$(run_opencode "$ITERATION" "$phase")
+        local next_phase=$(run_opencode "$ITERATION" "$CURRENT_PHASE")
         
         # Log what was detected
-        log INFO "Phase detection result: $next_phase (was in $phase)"
+        log INFO "Phase detection result: $next_phase (was in $CURRENT_PHASE)"
         
         # Check what to do next
         case $next_phase in
@@ -635,9 +635,9 @@ main_loop() {
                 # Commit discovery work
                 auto_commit_changes "Discovery" "docs: complete discovery phase"
                 
-                phase="PLANNING"
+                CURRENT_PHASE="PLANNING"
                 PHASE_ITERATION_COUNT=0  # Reset phase counter
-                log INFO "Phase is now: $phase"
+                log INFO "Phase is now: $CURRENT_PHASE"
                 ;;
             IMPLEMENTATION)
                 log SUCCESS "Planning phase complete. Moving to Implementation."
@@ -645,9 +645,9 @@ main_loop() {
                 # Commit planning work
                 auto_commit_changes "Planning" "docs: complete planning phase"
                 
-                phase="IMPLEMENTATION"
+                CURRENT_PHASE="IMPLEMENTATION"
                 PHASE_ITERATION_COUNT=0  # Reset phase counter
-                log INFO "Phase is now: $phase"
+                log INFO "Phase is now: $CURRENT_PHASE"
                 ;;
             VALIDATION)
                 log SUCCESS "Implementation phase complete. Running tests..."
@@ -658,9 +658,9 @@ main_loop() {
                 # Run tests with retry logic
                 if run_tests_with_retry; then
                     log SUCCESS "All tests passed. Moving to Validation."
-                    phase="VALIDATION"
+                    CURRENT_PHASE="VALIDATION"
                     PHASE_ITERATION_COUNT=0  # Reset phase counter
-                    log INFO "Phase is now: $phase"
+                    log INFO "Phase is now: $CURRENT_PHASE"
                 else
                     log WARNING "Tests failed. Asking OpenCode to fix issues..."
                     
@@ -677,8 +677,8 @@ main_loop() {
                     fi
                     
                     # Stay in implementation phase to fix issues
-                    phase="IMPLEMENTATION"
-                    log INFO "Phase remains: $phase (fixing test failures)"
+                    CURRENT_PHASE="IMPLEMENTATION"
+                    log INFO "Phase remains: $CURRENT_PHASE (fixing test failures)"
                 fi
                 ;;
             COMPLETE)
@@ -702,7 +702,7 @@ main_loop() {
                 
                 if [[ $REPLY =~ ^[Yy]$ ]]; then
                     log INFO "Starting new development cycle..."
-                    phase="DISCOVERY"
+                    CURRENT_PHASE="DISCOVERY"
                     PHASE_ITERATION_COUNT=0
                 else
                     log INFO "Sheen stopping. Great work!"
@@ -710,10 +710,10 @@ main_loop() {
                 fi
                 ;;
             CONTINUE)
-                log INFO "Continuing in $phase phase..."
+                log INFO "Continuing in $CURRENT_PHASE phase..."
                 
                 # During implementation, commit progress periodically
-                if [ "$phase" = "IMPLEMENTATION" ] && [ "$AUTO_COMMIT" = "true" ]; then
+                if [ "$CURRENT_PHASE" = "IMPLEMENTATION" ] && [ "$AUTO_COMMIT" = "true" ]; then
                     if [ -n "$(git status --porcelain)" ]; then
                         log INFO "Committing implementation progress..."
                         auto_commit_changes "Implementation" "wip: iteration #$ITERATION - ongoing implementation"
