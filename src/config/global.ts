@@ -46,6 +46,24 @@ export class GlobalConfig {
       autoCommit: true,
       autoApprove: false,
       logLevel: 'debug', // Default to verbose (debug) mode like sheen.sh
+      // AI SDK configuration (v0.2.0) - defaults to OpenCode for backward compatibility
+      ai: {
+        engine: 'opencode',
+        provider: 'anthropic',
+        model: 'claude-3-5-sonnet-20241022',
+        maxSteps: 10,
+        timeout: 300000, // 5 minutes
+        maxTokens: 200000,
+        contextWindowSize: 180000,
+        enablePruning: true,
+        toolPermissions: {
+          bash: 'allow',
+          read: 'allow',
+          write: 'ask',
+          edit: 'ask',
+          git_commit: 'ask'
+        }
+      },
       opencode: {
         model: 'github-copilot/claude-sonnet-4.5',
         streamOutput: true,
@@ -78,12 +96,18 @@ export class GlobalConfig {
     logger.debug('Merging configs: CLI > Project > Global > Defaults');
     
     const defaults = GlobalConfig.getDefaults();
-    const merged = {
+    const merged: AgentConfig = {
       ...defaults,
       ...global,
       ...project,
       ...cli,
       // Deep merge for nested objects
+      ai: {
+        ...defaults.ai!,
+        ...global?.ai,
+        ...project?.ai,
+        ...cli?.ai
+      },
       opencode: {
         ...defaults.opencode,
         ...global?.opencode,

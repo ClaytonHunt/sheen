@@ -10,6 +10,9 @@ export interface AgentConfig {
   autoCommit: boolean;
   autoApprove: boolean;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
+  // AI engine configuration (for v0.2.0)
+  ai?: AIConfig;
+  // Legacy OpenCode configuration (for v0.1.0 backward compatibility)
   opencode: OpenCodeConfig;
   tools: string[];
   excludePatterns: string[];
@@ -23,6 +26,31 @@ export interface OpenCodeConfig {
   apiKey?: string;
   streamOutput: boolean;
   contextWindow: number;
+}
+
+/**
+ * AI SDK Configuration for Direct Provider Integration (v0.2.0)
+ */
+export interface AIConfig {
+  // Engine selection
+  engine: 'opencode' | 'direct-ai-sdk';
+  
+  // Provider settings (for direct-ai-sdk)
+  provider: 'anthropic' | 'openai' | 'google';
+  model: string;
+  apiKey?: string; // Falls back to environment variables
+  
+  // Execution settings
+  maxSteps: number; // AI SDK multi-step reasoning limit
+  timeout: number;
+  
+  // Context management
+  maxTokens: number;
+  contextWindowSize: number;
+  enablePruning: boolean;
+  
+  // Safety settings
+  toolPermissions?: Record<string, 'allow' | 'deny' | 'ask'>;
 }
 
 export interface PhaseTimeouts {
