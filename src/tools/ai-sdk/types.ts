@@ -19,6 +19,9 @@ export interface ToolContext {
   /** Agent configuration */
   config: AgentConfig;
   
+  /** Patterns to exclude from file operations */
+  excludePatterns?: string[];
+  
   /** Permission manager (to be implemented in Phase 4) */
   permissionManager?: any; // TODO: Replace with PermissionManager type
 }
